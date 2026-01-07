@@ -239,13 +239,25 @@ h1{
   gap: 12px;
 }
 
-/* Caméra (Quagga) */
+/* Caméra (Quagga) - version "petite fenêtre" */
 .camera{
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.94);
+  background: rgba(0,0,0,0.55);
   z-index: 9999;
-  padding: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+}
+
+.cameraModal{
+  width: min(520px, 92vw);
+  background: rgba(10,10,12,0.92);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 22px;
+  box-shadow: 0 18px 50px rgba(0,0,0,0.55);
+  overflow: hidden;
 }
 
 .cameraHeader{
@@ -255,17 +267,16 @@ h1{
   color: rgba(255,255,255,0.92);
   font-weight: 750;
   letter-spacing: -0.2px;
-  margin-bottom: 12px;
+  padding: 14px 14px;
+  background: rgba(255,255,255,0.04);
+  border-bottom: 1px solid rgba(255,255,255,0.10);
 }
 
 .viewport{
   width: 100%;
-  height: 70vh;
+  height: min(360px, 46vh);  /* <-- taille réduite */
   background: #000;
-  border-radius: 18px;
-  overflow: hidden;
   position: relative;
-  border: 1px solid rgba(255,255,255,0.12);
 }
 
 .viewport video, .viewport canvas{
@@ -274,21 +285,23 @@ h1{
   object-fit: cover;
 }
 
+/* Cadre de guidage */
 .viewport::after{
   content: "";
   position: absolute;
-  left: 8%;
-  right: 8%;
+  left: 10%;
+  right: 10%;
   top: 42%;
-  height: 16%;
+  height: 18%;
   border: 2px solid rgba(255,255,255,0.55);
   border-radius: 18px;
   pointer-events: none;
 }
 
 .hint{
-  color: rgba(255,255,255,0.75);
+  color: rgba(255,255,255,0.72);
   font-size: 13px;
   line-height: 1.35;
-  margin-top: 12px;
+  padding: 12px 14px 14px;
 }
+
