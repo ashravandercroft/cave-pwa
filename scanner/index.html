@@ -1,1 +1,72 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Scanner cave</title>
+
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>Scanner</h1>
+    <div id="status" class="muted"></div>
+  </header>
+
+  <main class="main">
+    <section class="card">
+      <div class="row">
+        <label for="ean">Code-barres (EAN)</label>
+        <input id="ean" type="text" inputmode="numeric" placeholder="Ex: 3700123456789" />
+      </div>
+
+      <div class="buttons">
+        <button class="btn secondary" id="btnScan">Scan caméra</button>
+        <button class="btn primary" id="btnLookup">Chercher</button>
+      </div>
+
+      <div id="cameraWrap" class="cameraWrap hidden">
+        <video id="video" playsinline></video>
+        <div class="buttons">
+          <button class="btn secondary" id="btnStop">Arrêter</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="result" class="card hidden"></section>
+
+    <section id="form" class="card hidden">
+      <h2>Compléter la fiche</h2>
+      <div class="grid">
+        <div class="row"><label>Nom</label><input id="f_nom" type="text"></div>
+        <div class="row"><label>Domaine</label><input id="f_domaine" type="text"></div>
+        <div class="row"><label>Appellation</label><input id="f_appellation" type="text"></div>
+        <div class="row"><label>Millésime</label><input id="f_millesime" type="text" inputmode="numeric" placeholder="2019 ou vide"></div>
+        <div class="row">
+          <label>Couleur</label>
+          <select id="f_couleur">
+            <option value="">—</option>
+            <option value="rouge">Rouge</option>
+            <option value="blanc">Blanc</option>
+            <option value="rose">Rosé</option>
+            <option value="champagne">Champagne</option>
+            <option value="autre">Autre</option>
+          </select>
+        </div>
+        <div class="row"><label>Format</label><input id="f_format" type="text" placeholder="75cl"></div>
+        <div class="row"><label>Emplacement</label><input id="f_emplacement" type="text" placeholder="Casier 3"></div>
+      </div>
+      <div class="buttons">
+        <button class="btn primary" id="btnUpsert">Enregistrer la fiche</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
 
