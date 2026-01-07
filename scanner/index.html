@@ -89,15 +89,21 @@
     </div>
 
     <div id="cameraWrap" class="camera hidden">
-      <div class="cameraHeader">
-        <div>Scanner le code-barres</div>
-        <button id="btnStop" class="btn danger small">Stop</button>
-      </div>
-      <div id="scannerViewport" class="viewport"></div>
-      <div class="hint">
-        Placez le code-barres dans le cadre, proche, avec une bonne lumière. Inclinez légèrement pour éviter les reflets.
-      </div>
+  <div class="cameraModal">
+    <div class="cameraHeader">
+      <div>Scanner le code-barres</div>
+      <button id="btnStop" class="btn danger small">Stop</button>
     </div>
+
+    <div id="scannerViewport" class="viewport"></div>
+
+    <div class="hint">
+      Placez le code-barres dans le cadre, proche, avec une bonne lumière.
+      Inclinez légèrement pour éviter les reflets.
+    </div>
+  </div>
+</div>
+
   </main>
 
   <script src="https://unpkg.com/quagga@0.12.1/dist/quagga.min.js"></script>
