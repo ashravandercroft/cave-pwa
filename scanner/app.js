@@ -1,10 +1,7 @@
 // Remplacez cette URL par votre Apps Script /exec
 const API_URL = "VOTRE_URL_APPS_SCRIPT_EXEC";
 
-/* ===========================
-   DEBUG : vérifier chargement
-   =========================== */
-alert("scanner app.js chargé (debug)"); // À enlever après debug
+alert("SCANNER APP.JS VERSION 999");
 
 const $ = (id) => document.getElementById(id);
 
