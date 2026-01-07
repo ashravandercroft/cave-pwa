@@ -4,70 +4,81 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Scanner cave</title>
-
-  <link rel="manifest" href="manifest.webmanifest">
-  <meta name="theme-color" content="#ffffff">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-
-  <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="style.css" />
 </head>
+
 <body>
-  <header class="topbar">
+  <main class="container">
     <h1>Scanner</h1>
-    <div style="color:red;font-weight:700;">VERSION TEST</div>
-    <div id="status" class="muted"></div>
-  </header>
 
-  <main class="main">
-    <section class="card">
-      <div class="row">
-        <label for="ean">Code-barres (EAN)</label>
-        <input id="ean" type="text" inputmode="numeric" placeholder="Ex: 3700123456789" />
-      </div>
+    <div class="card">
+      <label class="label">Code-barres (EAN)</label>
+      <input id="ean" class="input" placeholder="Ex : 3215190004173" inputmode="numeric" />
 
       <div class="buttons">
-        <button class="btn secondary" id="btnScan">Scan caméra</button>
-        <button class="btn primary" id="btnLookup">Chercher</button>
+        <button id="btnLookup" class="btn primary">Chercher</button>
+        <button id="btnScan" class="btn secondary">Scanner (caméra)</button>
       </div>
 
-      <div id="cameraWrap" class="cameraWrap hidden">
-        <video id="video" playsinline></video>
-        <div class="buttons">
-          <button class="btn secondary" id="btnStop">Arrêter</button>
-        </div>
-      </div>
-    </section>
+      <div id="status" class="status">Prêt</div>
+    </div>
 
-    <section id="result" class="card hidden"></section>
+    <div id="result" class="card hidden"></div>
 
-    <section id="form" class="card hidden">
+    <!-- Formulaire si vin inconnu -->
+    <div id="form" class="card hidden">
       <h2>Compléter la fiche</h2>
-      <div class="grid">
-        <div class="row"><label>Nom</label><input id="f_nom" type="text"></div>
-        <div class="row"><label>Domaine</label><input id="f_domaine" type="text"></div>
-        <div class="row"><label>Appellation</label><input id="f_appellation" type="text"></div>
-        <div class="row"><label>Millésime</label><input id="f_millesime" type="text" inputmode="numeric" placeholder="2019 ou vide"></div>
-        <div class="row">
-          <label>Couleur</label>
-          <select id="f_couleur">
-            <option value="">—</option>
-            <option value="rouge">Rouge</option>
-            <option value="blanc">Blanc</option>
-            <option value="rose">Rosé</option>
-            <option value="champagne">Champagne</option>
-            <option value="autre">Autre</option>
-          </select>
-        </div>
-        <div class="row"><label>Format</label><input id="f_format" type="text" placeholder="75cl"></div>
-        <div class="row"><label>Emplacement</label><input id="f_emplacement" type="text" placeholder="Casier 3"></div>
-      </div>
+
+      <label class="label">Nom</label>
+      <input id="f_nom" class="input" />
+
+      <label class="label">Domaine</label>
+      <input id="f_domaine" class="input" />
+
+      <label class="label">Appellation</label>
+      <input id="f_appellation" class="input" />
+
+      <label class="label">Millésime</label>
+      <input id="f_millesime" class="input" placeholder="NV si non applicable" />
+
+      <label class="label">Couleur</label>
+      <select id="f_couleur" class="input">
+        <option value="">—</option>
+        <option value="rouge">Rouge</option>
+        <option value="blanc">Blanc</option>
+        <option value="rose">Rosé</option>
+        <option value="champagne">Champagne / effervescent</option>
+      </select>
+
+      <label class="label">Format</label>
+      <input id="f_format" class="input" placeholder="75cl" />
+
+      <label class="label">Emplacement</label>
+      <input id="f_emplacement" class="input" placeholder="Ex : Cave A / Étage 2" />
+
       <div class="buttons">
-        <button class="btn primary" id="btnUpsert">Enregistrer la fiche</button>
+        <button id="btnUpsert" class="btn primary">Enregistrer la fiche</button>
       </div>
-    </section>
+    </div>
+
+    <!-- Caméra Quagga -->
+    <div id="cameraWrap" class="camera hidden">
+      <div class="cameraHeader">
+        <div>Scanner le code-barres</div>
+        <button id="btnStop" class="btn danger small">Stop</button>
+      </div>
+      <div id="scannerViewport" class="viewport"></div>
+      <div class="hint">
+        Placez le code-barres bien à plat, proche de la caméra, avec une bonne lumière.
+      </div>
+    </div>
   </main>
 
-  <script src="app.js"></script>
+  <!-- QuaggaJS (CDN) -->
+  <script src="https://unpkg.com/quagga@0.12.1/dist/quagga.min.js"></script>
+
+  <!-- Votre JS (gardez éventuellement ?v=...) -->
+  <script src="app.js?v=1"></script>
 </body>
 </html>
-
