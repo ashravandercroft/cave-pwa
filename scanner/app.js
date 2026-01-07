@@ -305,7 +305,7 @@ function startScan() {
       halfSample: true
     },
     numOfWorkers: 0, // iOS Safari : souvent mieux à 0
-    frequency: 10,
+    frequency: 20,
     decoder: {
       readers: [
         "ean_reader",
