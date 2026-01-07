@@ -1,8 +1,6 @@
 // Remplacez cette URL par votre Apps Script /exec
 const API_URL = "https://script.google.com/macros/s/AKfycbyxfNO9zWm3CT-GACd0oQE_ambHcJ33VHrQOxVxQIIEEpuv53G_A08cWqHXOsYcofaD/exec";
 
-alert("SCANNER APP.JS VERSION 999");
-
 const $ = (id) => document.getElementById(id);
 
 let last = {
@@ -34,12 +32,12 @@ function normalizeEan(ean) {
 }
 
 function fillFormFromProduct(p) {
-  $("f_nom").value = (p && p.nom) ? p.nom : "";
-  $("f_domaine").value = (p && p.domaine) ? p.domaine : "";
-  $("f_appellation").value = (p && p.appellation) ? p.appellation : "";
-  $("f_millesime").value = (p && p.millesime) ? p.millesime : "";
-  $("f_couleur").value = (p && p.couleur) ? p.couleur : "";
-  $("f_format").value = (p && p.format) ? p.format : "";
+  $("f_nom").value = p?.nom || "";
+  $("f_domaine").value = p?.domaine || "";
+  $("f_appellation").value = p?.appellation || "";
+  $("f_millesime").value = p?.millesime || "";
+  $("f_couleur").value = p?.couleur || "";
+  $("f_format").value = p?.format || "";
 }
 
 function getFormData() {
@@ -67,12 +65,12 @@ async function lookup(ean) {
   const found = await apiGet(API_URL + "?action=find&ean=" + encodeURIComponent(ean));
   if (!found.ok) {
     setStatus("Erreur API");
-    alert("Erreur API (find) : " + (found.error || "Erreur inconnue"));
+    alert(found.error || "Erreur API");
     return;
   }
   last.dataInCave = found.data || [];
 
-  // 2) tenter Open Food Facts pour préremplir
+  // 2) si pas trouvé, essayer Open Food Facts (préremplissage)
   let offProduct = null;
   try {
     const off = await fetch("https://world.openfoodfacts.org/api/v0/product/" + ean + ".json");
@@ -95,18 +93,13 @@ async function lookup(ean) {
   renderResult();
   setStatus("Prêt");
 
-  // si pas trouvé en cave, afficher formulaire pour compléter
+  // si aucune donnée cave, on ouvre le formulaire pour compléter
   if (last.dataInCave.length === 0) {
     show("form");
     fillFormFromProduct(offProduct || { nom:"", domaine:"", appellation:"", millesime:"", couleur:"", format:"" });
   }
 }
 
-/* ===========================
-   RENDERRESULT (MODIFIÉ)
-   Utilise onclick pour éviter
-   tout souci d'event listener
-   =========================== */
 function renderResult() {
   const ean = last.ean;
   const cave = last.dataInCave;
@@ -117,6 +110,7 @@ function renderResult() {
   let qtyInfo = "";
 
   if (cave.length > 0) {
+    // plusieurs millésimes possibles
     const total = cave.reduce((s, x) => s + Number(x.quantite || 0), 0);
     title = "Vin trouvé dans votre cave";
     sub = "Références : " + cave.length + " • Total : " + total + " bouteilles";
@@ -139,9 +133,9 @@ function renderResult() {
     <div class="small" style="margin-top:10px;">${qtyInfo}</div>
 
     <div class="buttons">
-      <button class="btn primary" onclick="applyAction('add')">Ajouter en cave (+1)</button>
-      <button class="btn danger" onclick="applyAction('remove')">Sortir de la cave (–1)</button>
-      <button class="btn secondary" onclick="toggleInfoBox()">Informations sur le vin</button>
+      <button class="btn primary" id="btnAdd">Ajouter en cave (+1)</button>
+      <button class="btn danger" id="btnRemove">Sortir de la cave (–1)</button>
+      <button class="btn secondary" id="btnInfo">Informations sur le vin</button>
     </div>
 
     <div id="infoBox" class="small hidden" style="margin-top:12px;">
@@ -152,20 +146,19 @@ function renderResult() {
   `;
 
   show("result");
-   alert("HTML result = \n\n" + $("result").innerHTML);
-}
 
-function toggleInfoBox() {
-  const box = document.getElementById("infoBox");
-  if (!box) return;
-  box.classList.toggle("hidden");
+  // handlers (les boutons n'existent qu'après renderResult)
+  const addBtn = $("btnAdd");
+  const remBtn = $("btnRemove");
+  const infoBtn = $("btnInfo");
+
+  if (addBtn) addBtn.addEventListener("click", () => applyAction("add"));
+  if (remBtn) remBtn.addEventListener("click", () => applyAction("remove"));
+  if (infoBtn) infoBtn.addEventListener("click", () => $("infoBox").classList.toggle("hidden"));
 }
 
 function buildInfoLinks(ean, obj) {
-  const name = obj && (obj.nom || obj.domaine)
-    ? `${obj.nom || ""} ${obj.domaine || ""} ${obj.millesime || ""}`.trim()
-    : ean;
-
+  const name = obj && (obj.nom || obj.domaine) ? `${obj.nom || ""} ${obj.domaine || ""} ${obj.millesime || ""}`.trim() : ean;
   const q = encodeURIComponent(name);
   return {
     vivino: `https://www.vivino.com/search/wines?q=${q}`,
@@ -184,20 +177,11 @@ function escapeHtml(s) {
     .replaceAll("'", "&#039;");
 }
 
-/* ===========================
-   DEBUG APPLYACTION
-   =========================== */
 async function applyAction(action) {
-  // DEBUG 1 : vérifier que le clic arrive ici
-  alert("applyAction appelé : " + action);
-
   const ean = last.ean;
-  if (!ean) {
-    alert("EAN absent (il faut d'abord faire Chercher).");
-    return;
-  }
+  if (!ean) return;
 
-  // Choix millésime si plusieurs entrées avec même EAN
+  // si plusieurs millésimes en cave, demander lequel
   let millesime = "";
   if (last.dataInCave.length > 1) {
     const choices = last.dataInCave.map(x => x.millesime || "NV");
@@ -206,12 +190,13 @@ async function applyAction(action) {
   } else if (last.dataInCave.length === 1) {
     millesime = (last.dataInCave[0].millesime || "NV").toString();
   } else {
+    // pas en cave : on prend le formulaire si rempli
     const f = getFormData();
     millesime = (f.millesime || "NV").trim() || "NV";
   }
 
+  // si add et pas en cave : on crée minimalement via add (API crée si absent)
   const base = getFormData();
-
   const payload = {
     action,
     ean,
@@ -226,27 +211,11 @@ async function applyAction(action) {
     source: "scanner"
   };
 
-  // DEBUG 2 : afficher ce qu’on envoie
-  alert("Je vais envoyer ce payload :\n" + JSON.stringify(payload, null, 2));
-
   setStatus(action === "add" ? "Ajout…" : "Sortie…");
-
-  let res;
-  try {
-    res = await apiPost(payload);
-  } catch (e) {
+  const res = await apiPost(payload);
+  if (!res.ok) {
     setStatus("Erreur");
-    alert("Erreur réseau / fetch : " + e.message);
-    return;
-  }
-
-  // DEBUG 3 : afficher la réponse API
-  alert("Réponse API :\n" + JSON.stringify(res, null, 2));
-  console.log("API response:", res);
-
-  if (!res || !res.ok) {
-    setStatus("Erreur");
-    alert("Erreur API : " + ((res && res.error) ? res.error : "Réponse inconnue"));
+    alert(res.error || "Erreur API");
     return;
   }
 
@@ -260,6 +229,7 @@ async function upsert() {
 
   const f = getFormData();
   if (!f.nom) return alert("Le nom est obligatoire.");
+  if (!f.couleur) return alert("La couleur est recommandée.");
 
   const payload = {
     action: "upsert",
@@ -278,24 +248,23 @@ async function upsert() {
 
   setStatus("Enregistrement…");
   const res = await apiPost(payload);
-  alert("Réponse API (upsert) :\n" + JSON.stringify(res, null, 2));
-
   if (!res.ok) {
     setStatus("Erreur");
     alert(res.error || "Erreur API");
     return;
   }
+
   setStatus("Enregistré");
   alert("Fiche enregistrée.");
   await lookup(ean);
 }
 
-/* Scan caméra simple (BarcodeDetector si disponible) */
+/* Scan caméra basique (si BarcodeDetector existe) */
 let stream = null;
 
 async function startScan() {
   if (!("BarcodeDetector" in window)) {
-    alert("Scan caméra non disponible ici. Utilisez la saisie EAN pour l’instant.");
+    alert("Le scan caméra automatique n’est pas disponible sur cet iPhone. Utilisez la saisie EAN pour l’instant.");
     return;
   }
 
@@ -348,10 +317,8 @@ function bind() {
 (function init() {
   bind();
   setStatus("Prêt");
-})();
 
-/* ===========================
-   Rendre accessible aux onclick
-   =========================== */
-window.applyAction = applyAction;
-window.toggleInfoBox = toggleInfoBox;
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  }
+})();
