@@ -49,11 +49,11 @@ async function apiGet(url) {
 async function apiPost(payload) {
   const res = await fetch(API_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload) // pas de headers
   });
   return res.json();
 }
+
 
 function computeStats(list) {
   const totalBottles = list.reduce((sum, b) => sum + toInt(b.quantite), 0);
