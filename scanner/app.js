@@ -409,6 +409,10 @@ function bind() {
   $("btnScan").addEventListener("click", startScan);
   $("btnStop").addEventListener("click", stopScan);
   $("btnUpsert").addEventListener("click", upsert);
+  $("cameraWrap")?.addEventListener("click", (e) => {
+  if (e.target && e.target.id === "cameraWrap") stopScan();
+});
+
 }
 
 (function init() {
