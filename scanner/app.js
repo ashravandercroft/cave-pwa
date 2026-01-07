@@ -105,6 +105,11 @@ async function lookup(ean) {
   }
 }
 
+/* ===========================
+   RENDERRESULT (MODIFIÉ)
+   Utilise onclick pour éviter
+   tout souci d'event listener
+   =========================== */
 function renderResult() {
   const ean = last.ean;
   const cave = last.dataInCave;
@@ -137,9 +142,9 @@ function renderResult() {
     <div class="small" style="margin-top:10px;">${qtyInfo}</div>
 
     <div class="buttons">
-      <button class="btn primary" id="btnAdd">Ajouter en cave (+1)</button>
-      <button class="btn danger" id="btnRemove">Sortir de la cave (–1)</button>
-      <button class="btn secondary" id="btnInfo">Informations sur le vin</button>
+      <button class="btn primary" onclick="applyAction('add')">Ajouter en cave (+1)</button>
+      <button class="btn danger" onclick="applyAction('remove')">Sortir de la cave (–1)</button>
+      <button class="btn secondary" onclick="toggleInfoBox()">Informations sur le vin</button>
     </div>
 
     <div id="infoBox" class="small hidden" style="margin-top:12px;">
@@ -150,11 +155,12 @@ function renderResult() {
   `;
 
   show("result");
+}
 
-  // IMPORTANT : ces boutons n'existent qu'après renderResult()
-  $("btnAdd").addEventListener("click", () => applyAction("add"));
-  $("btnRemove").addEventListener("click", () => applyAction("remove"));
-  $("btnInfo").addEventListener("click", () => $("infoBox").classList.toggle("hidden"));
+function toggleInfoBox() {
+  const box = document.getElementById("infoBox");
+  if (!box) return;
+  box.classList.toggle("hidden");
 }
 
 function buildInfoLinks(ean, obj) {
@@ -181,7 +187,7 @@ function escapeHtml(s) {
 }
 
 /* ===========================
-   ÉTAPE 2 : DEBUG APPLYACTION
+   DEBUG APPLYACTION
    =========================== */
 async function applyAction(action) {
   // DEBUG 1 : vérifier que le clic arrive ici
@@ -345,3 +351,9 @@ function bind() {
   bind();
   setStatus("Prêt");
 })();
+
+/* ===========================
+   Rendre accessible aux onclick
+   =========================== */
+window.applyAction = applyAction;
+window.toggleInfoBox = toggleInfoBox;
