@@ -305,3 +305,4 @@ h1{
   padding: 12px 14px 14px;
 }
 
+.hidden { display: none !important; }
