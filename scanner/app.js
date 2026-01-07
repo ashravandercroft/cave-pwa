@@ -106,55 +106,57 @@ function renderResult() {
 
   let title = "";
   let sub = "";
-  let qtyInfo = "";
+  let detailsHtml = "";
+  let img = (p && p.image_url) ? p.image_url : "";
 
   if (cave.length > 0) {
-    // plusieurs millésimes possibles
     const total = cave.reduce((s, x) => s + Number(x.quantite || 0), 0);
-    title = "Vin trouvé dans votre cave";
-    sub = "Références : " + cave.length + " • Total : " + total + " bouteilles";
-    qtyInfo = cave.map(x => `• ${x.millesime || "NV"} : ${x.quantite} (${x.emplacement || "?"})`).join("<br>");
+    title = "Déjà dans la cave";
+    sub = "Total : " + total + " bouteille(s)";
+    detailsHtml = cave
+      .map(x => `• ${escapeHtml(x.millesime || "NV")} : <b>${escapeHtml(String(x.quantite || 0))}</b> (${escapeHtml(x.emplacement || "?" )})`)
+      .join("<br>");
   } else if (p) {
-    title = p.nom || "Vin non trouvé dans votre cave";
-    sub = p.domaine ? p.domaine : "Fiche externe trouvée (à compléter)";
-    qtyInfo = "EAN : " + ean;
+    title = escapeHtml(p.nom || "Vin détecté");
+    sub = escapeHtml(p.domaine || "—");
+    detailsHtml = "EAN : " + escapeHtml(ean);
   } else {
     title = "Vin inconnu";
-    sub = "EAN : " + ean;
-    qtyInfo = "Aucune fiche trouvée automatiquement. Complétez ci-dessous.";
+    sub = "EAN : " + escapeHtml(ean);
+    detailsHtml = "Aucune fiche automatique. Complétez ci-dessous.";
   }
 
   const infoLinks = buildInfoLinks(ean, cave[0] || p);
 
   $("result").innerHTML = `
-    <h2>${escapeHtml(title)}</h2>
-    <div class="small">${escapeHtml(sub)}</div>
-    <div class="small" style="margin-top:10px;">${qtyInfo}</div>
+    <div class="sectionTitle">Résultat</div>
+    <h2 class="resultTitle">${title}</h2>
+    <div class="resultMeta">${sub}</div>
 
-    <div class="buttons">
-      <button class="btn primary" id="btnAdd">Ajouter en cave (+1)</button>
-      <button class="btn danger" id="btnRemove">Sortir de la cave (–1)</button>
-      <button class="btn secondary" id="btnInfo">Informations sur le vin</button>
+    ${img ? `<img class="photo" src="${img}" alt="Photo">` : ""}
+
+    <div class="resultBlock">${detailsHtml}</div>
+
+    <div class="actionsRow">
+      <button class="btn primary" id="btnAdd">+1</button>
+      <button class="btn danger" id="btnRemove">-1</button>
+      <button class="btn secondary" id="btnInfo">Infos</button>
     </div>
 
-    <div id="infoBox" class="small hidden" style="margin-top:12px;">
-      <div><a href="${infoLinks.vivino}" target="_blank" rel="noopener">Vivino</a></div>
-      <div><a href="${infoLinks.ws}" target="_blank" rel="noopener">Wine-Searcher</a></div>
-      <div><a href="${infoLinks.google}" target="_blank" rel="noopener">Google</a></div>
+    <div id="infoBox" class="infoLinks hidden">
+      <a href="${infoLinks.vivino}" target="_blank" rel="noopener">Vivino</a>
+      <a href="${infoLinks.ws}" target="_blank" rel="noopener">Wine-Searcher</a>
+      <a href="${infoLinks.google}" target="_blank" rel="noopener">Google</a>
     </div>
   `;
 
   show("result");
 
-  // handlers (les boutons n'existent qu'après renderResult)
-  const addBtn = $("btnAdd");
-  const remBtn = $("btnRemove");
-  const infoBtn = $("btnInfo");
-
-  if (addBtn) addBtn.addEventListener("click", () => applyAction("add"));
-  if (remBtn) remBtn.addEventListener("click", () => applyAction("remove"));
-  if (infoBtn) infoBtn.addEventListener("click", () => $("infoBox").classList.toggle("hidden"));
+  $("btnAdd").onclick = () => applyAction("add");
+  $("btnRemove").onclick = () => applyAction("remove");
+  $("btnInfo").onclick = () => $("infoBox").classList.toggle("hidden");
 }
+
 
 function buildInfoLinks(ean, obj) {
   const name = obj && (obj.nom || obj.domaine) ? `${obj.nom || ""} ${obj.domaine || ""} ${obj.millesime || ""}`.trim() : ean;
