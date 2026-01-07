@@ -261,50 +261,140 @@ async function upsert() {
 /* Scan caméra basique (si BarcodeDetector existe) */
 let stream = null;
 
-async function startScan() {
-  if (!("BarcodeDetector" in window)) {
-    alert("Le scan caméra automatique n’est pas disponible sur cet iPhone. Utilisez la saisie EAN pour l’instant.");
+/* ===========================
+   Scan caméra (QuaggaJS)
+   =========================== */
+
+let quaggaRunning = false;
+let lastDetected = "";
+let lastDetectedAt = 0;
+
+function startScan() {
+  // Quagga doit être chargé par le script CDN
+  if (!window.Quagga) {
+    alert("Quagga n'est pas chargé. Vérifiez que le script Quagga est bien dans index.html.");
     return;
   }
 
-  const detector = new BarcodeDetector({ formats: ["ean_13", "ean_8", "upc_a", "upc_e"] });
+  show("cameraWrap");
+  setStatus("Scan en cours…");
 
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-    $("video").srcObject = stream;
-    await $("video").play();
-    show("cameraWrap");
-
-    const tick = async () => {
-      if (!stream) return;
-      try {
-        const barcodes = await detector.detect($("video"));
-        if (barcodes && barcodes.length) {
-          const raw = barcodes[0].rawValue;
-          if (raw) {
-            stopScan();
-            $("ean").value = normalizeEan(raw);
-            await lookup(raw);
-            return;
-          }
-        }
-      } catch (e) {}
-      requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
-
-  } catch (e) {
-    alert("Impossible d'accéder à la caméra : " + e.message);
+  const viewport = document.getElementById("scannerViewport");
+  if (!viewport) {
+    alert("scannerViewport introuvable dans la page.");
+    return;
   }
+
+  // Reset des gardes
+  lastDetected = "";
+  lastDetectedAt = 0;
+
+  const config = {
+    inputStream: {
+      name: "Live",
+      type: "LiveStream",
+      target: viewport,
+      constraints: {
+        facingMode: "environment",
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      }
+    },
+    locator: {
+      patchSize: "medium",
+      halfSample: true
+    },
+    numOfWorkers: 0, // iOS Safari : souvent mieux à 0
+    frequency: 10,
+    decoder: {
+      readers: [
+        "ean_reader",
+        "ean_8_reader",
+        "upc_reader",
+        "upc_e_reader"
+      ]
+    },
+    locate: true
+  };
+
+  Quagga.init(config, (err) => {
+    if (err) {
+      setStatus("Erreur caméra");
+      alert("Impossible d'initialiser la caméra : " + err.message);
+      hide("cameraWrap");
+      return;
+    }
+
+    Quagga.start();
+    quaggaRunning = true;
+
+    // Dessin de la zone détectée (optionnel)
+    Quagga.onProcessed(onQuaggaProcessed);
+    Quagga.onDetected(onQuaggaDetected);
+  });
+}
+
+function onQuaggaProcessed(result) {
+  // Optionnel : dessiner une boîte autour du code-barres
+  const drawingCtx = Quagga.canvas.ctx.overlay;
+  const drawingCanvas = Quagga.canvas.dom.overlay;
+
+  if (!drawingCtx || !drawingCanvas) return;
+
+  drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+
+  if (result && result.boxes) {
+    result.boxes
+      .filter((b) => b !== result.box)
+      .forEach((box) => {
+        Quagga.ImageDebug.drawPath(box, { x: 0, y: 1 }, drawingCtx, {
+          color: "rgba(0,255,0,0.3)",
+          lineWidth: 2
+        });
+      });
+  }
+
+  if (result && result.box) {
+    Quagga.ImageDebug.drawPath(result.box, { x: 0, y: 1 }, drawingCtx, {
+      color: "rgba(255,0,0,0.6)",
+      lineWidth: 3
+    });
+  }
+}
+
+function onQuaggaDetected(data) {
+  const code = data && data.codeResult && data.codeResult.code;
+  if (!code) return;
+
+  const ean = normalizeEan(code);
+  if (!ean) return;
+
+  // Garde anti "double scan"
+  // iOS peut détecter plusieurs fois le même code : on évite les doublons
+  const now = Date.now();
+  if (ean === lastDetected && now - lastDetectedAt < 1500) return;
+
+  lastDetected = ean;
+  lastDetectedAt = now;
+
+  stopScan();
+  $("ean").value = ean;
+  lookup(ean);
 }
 
 function stopScan() {
-  hide("cameraWrap");
-  if (stream) {
-    stream.getTracks().forEach(t => t.stop());
-    stream = null;
+  if (window.Quagga && quaggaRunning) {
+    try {
+      Quagga.offProcessed(onQuaggaProcessed);
+      Quagga.offDetected(onQuaggaDetected);
+      Quagga.stop();
+    } catch (e) {}
   }
+  quaggaRunning = false;
+  hide("cameraWrap");
+  setStatus("Prêt");
 }
+
 
 function bind() {
   $("btnLookup").addEventListener("click", () => lookup($("ean").value));
