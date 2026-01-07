@@ -10,59 +10,84 @@
 
 <body>
   <main class="container">
-    <h1>Scanner</h1>
+    <div class="header">
+      <div class="titleWrap">
+        <h1>Scanner</h1>
+        <div class="subtitle">Ajoutez, sortez, et retrouvez vos bouteilles.</div>
+      </div>
+      <div class="badge" id="statusBadge">Prêt</div>
+    </div>
 
     <div class="card">
+      <div class="sectionTitle">Recherche</div>
+
       <label class="label">Code-barres (EAN)</label>
       <input id="ean" class="input" placeholder="Ex : 3215190004173" inputmode="numeric" />
 
       <div class="buttons">
         <button id="btnLookup" class="btn primary">Chercher</button>
-        <button id="btnScan" class="btn secondary">Scanner (caméra)</button>
+        <button id="btnScan" class="btn secondary">Scanner</button>
       </div>
 
-      <div id="status" class="status">Prêt</div>
+      <div class="status">
+        <div id="status">Prêt</div>
+        <div style="color: rgba(255,255,255,0.55); font-size: 12px;">iPhone + Quagga</div>
+      </div>
     </div>
 
     <div id="result" class="card hidden"></div>
 
-    <!-- Formulaire si vin inconnu -->
     <div id="form" class="card hidden">
-      <h2>Compléter la fiche</h2>
+      <div class="sectionTitle">Compléter la fiche</div>
 
-      <label class="label">Nom</label>
-      <input id="f_nom" class="input" />
+      <div class="formGrid">
+        <div>
+          <label class="label">Nom</label>
+          <input id="f_nom" class="input" />
+        </div>
 
-      <label class="label">Domaine</label>
-      <input id="f_domaine" class="input" />
+        <div>
+          <label class="label">Domaine</label>
+          <input id="f_domaine" class="input" />
+        </div>
 
-      <label class="label">Appellation</label>
-      <input id="f_appellation" class="input" />
+        <div>
+          <label class="label">Appellation</label>
+          <input id="f_appellation" class="input" />
+        </div>
 
-      <label class="label">Millésime</label>
-      <input id="f_millesime" class="input" placeholder="NV si non applicable" />
+        <div>
+          <label class="label">Millésime</label>
+          <input id="f_millesime" class="input" placeholder="NV si non applicable" />
+        </div>
 
-      <label class="label">Couleur</label>
-      <select id="f_couleur" class="input">
-        <option value="">—</option>
-        <option value="rouge">Rouge</option>
-        <option value="blanc">Blanc</option>
-        <option value="rose">Rosé</option>
-        <option value="champagne">Champagne / effervescent</option>
-      </select>
+        <div>
+          <label class="label">Couleur</label>
+          <select id="f_couleur" class="input">
+            <option value="">—</option>
+            <option value="rouge">Rouge</option>
+            <option value="blanc">Blanc</option>
+            <option value="rose">Rosé</option>
+            <option value="champagne">Effervescent</option>
+          </select>
+        </div>
 
-      <label class="label">Format</label>
-      <input id="f_format" class="input" placeholder="75cl" />
+        <div>
+          <label class="label">Format</label>
+          <input id="f_format" class="input" placeholder="75cl" />
+        </div>
 
-      <label class="label">Emplacement</label>
-      <input id="f_emplacement" class="input" placeholder="Ex : Cave A / Étage 2" />
+        <div>
+          <label class="label">Emplacement</label>
+          <input id="f_emplacement" class="input" placeholder="Ex : Cave / Étage 2" />
+        </div>
 
-      <div class="buttons">
-        <button id="btnUpsert" class="btn primary">Enregistrer la fiche</button>
+        <div class="buttons">
+          <button id="btnUpsert" class="btn primary" style="grid-column: 1 / -1;">Enregistrer la fiche</button>
+        </div>
       </div>
     </div>
 
-    <!-- Caméra Quagga -->
     <div id="cameraWrap" class="camera hidden">
       <div class="cameraHeader">
         <div>Scanner le code-barres</div>
@@ -70,15 +95,12 @@
       </div>
       <div id="scannerViewport" class="viewport"></div>
       <div class="hint">
-        Placez le code-barres bien à plat, proche de la caméra, avec une bonne lumière.
+        Placez le code-barres dans le cadre, proche, avec une bonne lumière. Inclinez légèrement pour éviter les reflets.
       </div>
     </div>
   </main>
 
-  <!-- QuaggaJS (CDN) -->
   <script src="https://unpkg.com/quagga@0.12.1/dist/quagga.min.js"></script>
-
-  <!-- Votre JS (gardez éventuellement ?v=...) -->
   <script src="app.js?v=1"></script>
 </body>
 </html>
