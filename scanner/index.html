@@ -25,10 +25,9 @@
       <input id="ean" class="input" placeholder="Ex : 3215190004173" inputmode="numeric" />
 
       <div class="buttons">
-  <button id="btnLookup" type="button" class="btn primary">Chercher</button>
-  <button id="btnScan" type="button" class="btn secondary">Scanner</button>
-</div>
-
+        <button id="btnLookup" type="button" class="btn primary">Chercher</button>
+        <button id="btnScan" type="button" class="btn secondary">Scanner</button>
+      </div>
 
       <div class="status">
         <div id="status">Prêt</div>
@@ -84,31 +83,30 @@
         </div>
 
         <div class="buttons">
-          <button id="btnUpsert" class="btn primary" style="grid-column: 1 / -1;">Enregistrer la fiche</button>
+          <button id="btnUpsert" type="button" class="btn primary" style="grid-column: 1 / -1;">Enregistrer la fiche</button>
         </div>
       </div>
     </div>
 
     <div id="cameraWrap" class="camera hidden">
-  <div class="cameraModal">
-    <div class="cameraHeader">
-      <div>Scanner le code-barres</div>
-      <button id="btnStop" class="btn danger small">Stop</button>
-    </div>
+      <div class="cameraModal">
+        <div class="cameraHeader">
+          <div>Scanner le code-barres</div>
+          <button id="btnStop" type="button" class="btn danger small">Stop</button>
+        </div>
 
-    <div id="scannerViewport" class="viewport"></div>
+        <div id="scannerViewport" class="viewport"></div>
 
-    <div class="hint">
-      Placez le code-barres dans le cadre, proche, avec une bonne lumière.
-      Inclinez légèrement pour éviter les reflets.
+        <div class="hint">
+          Placez le code-barres dans le cadre, proche, avec une bonne lumière.
+          Inclinez légèrement pour éviter les reflets.
+        </div>
+      </div>
     </div>
-  </div>
-</div>
 
   </main>
 
   <script src="https://unpkg.com/quagga@0.12.1/dist/quagga.min.js"></script>
   <script src="app.js?v=2"></script>
-
 </body>
 </html>
