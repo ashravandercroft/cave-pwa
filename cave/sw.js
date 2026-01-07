@@ -1,4 +1,4 @@
-const CACHE = "cave-cache-v1";
+const CACHE = "cave-cache-v2";
 const ASSETS = ["./", "./index.html", "./styles.css", "./app.js", "./manifest.webmanifest"];
 
 self.addEventListener("install", (evt) => {
