@@ -1,5 +1,5 @@
 // Remplacez cette URL par votre Apps Script /exec
-const API_URL = "VOTRE_URL_APPS_SCRIPT_EXEC";
+const API_URL = "https://script.google.com/macros/s/AKfycbyxfNO9zWm3CT-GACd0oQE_ambHcJ33VHrQOxVxQIIEEpuv53G_A08cWqHXOsYcofaD/exec";
 
 alert("SCANNER APP.JS VERSION 999");
 
