@@ -1,4 +1,4 @@
-const CACHE = "scanner-cache-v1";
+const CACHE = "scanner-cache-v2";
 const ASSETS = ["./", "./index.html", "./styles.css", "./app.js", "./manifest.webmanifest"];
 
 self.addEventListener("install", (evt) => {
