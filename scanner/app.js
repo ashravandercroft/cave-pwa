@@ -144,9 +144,10 @@ function renderResult() {
     <div class="resultBlock">${detailsHtml}</div>
 
     <div class="actionsRow">
-      <button class="btn primary" id="btnAdd">+1</button>
-      <button class="btn danger" id="btnRemove">-1</button>
-      <button class="btn secondary" id="btnInfo">Infos</button>
+      <button type="button" class="btn primary" id="btnAdd">+1</button>
+<button type="button" class="btn danger" id="btnRemove">-1</button>
+<button type="button" class="btn secondary" id="btnInfo">Infos</button>
+
     </div>
 
     <div id="infoBox" class="infoLinks hidden">
