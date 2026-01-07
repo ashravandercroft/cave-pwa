@@ -183,4 +183,3 @@ h1 { font-size: 20px; margin: 0; }
 .details .row { margin-top: 8px; color: var(--muted); font-size: 13px; }
 .details .actions { margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; }
 .details img { width: 100%; max-width: 320px; border-radius: 14px; margin-top: 10px; border: 1px solid var(--border); }
-
