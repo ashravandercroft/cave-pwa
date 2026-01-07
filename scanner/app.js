@@ -210,6 +210,7 @@ async function applyAction(action) {
 
   setStatus(action === "add" ? "Ajout…" : "Sortie…");
   const res = await apiPost(payload);
+  alert(JSON.stringify(res));
   if (!res.ok) {
     setStatus("Erreur");
     alert(res.error || "Erreur API");
