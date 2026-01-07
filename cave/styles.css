@@ -1,1 +1,186 @@
+:root {
+  --bg: #ffffff;
+  --text: #0f172a;
+  --muted: #64748b;
+  --border: #e2e8f0;
+  --chip: #f1f5f9;
+  --shadow: 0 6px 22px rgba(15,23,42,0.08);
+  --radius: 16px;
+  --btn: #0f172a;
+  --btnText: #fff;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 20;
+  border-bottom: 1px solid var(--border);
+  padding: 14px 14px 10px;
+}
+
+.title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+h1 { font-size: 20px; margin: 0; }
+.muted { color: var(--muted); font-size: 12px; }
+
+.stats {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.stat {
+  background: var(--chip);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.main { padding: 14px; padding-bottom: 90px; }
+
+.controls { margin-bottom: 12px; }
+.search {
+  width: 100%;
+  padding: 12px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 14px;
+}
+.filters {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 10px;
+}
+.filters select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fff;
+  font-size: 13px;
+}
+
+.view { display: none; }
+.view.active { display: block; }
+
+.list { display: flex; flex-direction: column; gap: 12px; }
+.card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  box-shadow: var(--shadow);
+  background: #fff;
+}
+.cardTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+.cardTitle { font-weight: 700; font-size: 15px; line-height: 1.2; }
+.cardSub { color: var(--muted); font-size: 12px; margin-top: 4px; }
+.cardMeta { color: var(--muted); font-size: 12px; margin-top: 6px; }
+.qty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+.qtyNum { font-size: 22px; font-weight: 800; }
+.qtyBtns { display: flex; gap: 8px; }
+.btn {
+  border: none;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.btn.primary { background: var(--btn); color: var(--btnText); }
+.btn.secondary { background: var(--chip); color: var(--text); }
+.btn.danger { background: #fee2e2; color: #7f1d1d; }
+
+.smallBtn {
+  border: 1px solid var(--border);
+  background: #fff;
+  border-radius: 12px;
+  padding: 8px 10px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.tabbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  padding: 10px;
+  gap: 10px;
+}
+
+.tab {
+  border: 1px solid var(--border);
+  background: #fff;
+  border-radius: 999px;
+  padding: 10px 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.tab.active {
+  background: var(--btn);
+  color: var(--btnText);
+  border-color: var(--btn);
+}
+
+.places { display: flex; flex-direction: column; gap: 12px; }
+.placeRow {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fff;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+}
+.placeName { font-weight: 700; }
+.placeMeta { color: var(--muted); font-size: 12px; margin-top: 4px; }
+
+.back {
+  border: 1px solid var(--border);
+  background: #fff;
+  border-radius: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+  margin-bottom: 12px;
+}
+.details {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  box-shadow: var(--shadow);
+  background: #fff;
+}
+.details h2 { margin: 0 0 6px; font-size: 18px; }
+.details .row { margin-top: 8px; color: var(--muted); font-size: 13px; }
+.details .actions { margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; }
+.details img { width: 100%; max-width: 320px; border-radius: 14px; margin-top: 10px; border: 1px solid var(--border); }
 
