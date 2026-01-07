@@ -9,7 +9,13 @@ let last = {
   product: null
 };
 
-function setStatus(t) { $("status").textContent = t || ""; }
+function setStatus(t) {
+  const el = $("status");
+  if (el) el.textContent = t || "";
+  const b = document.getElementById("statusBadge");
+  if (b) b.textContent = t || "Prêt";
+}
+
 function show(id) { $(id).classList.remove("hidden"); }
 function hide(id) { $(id).classList.add("hidden"); }
 
@@ -56,14 +62,14 @@ async function lookup(ean) {
   if (!ean) { alert("Veuillez saisir ou scanner un code-barres."); return; }
 
   last.ean = ean;
-  setStatus("Recherche…");
+  s("Recherche…");
   hide("result");
   hide("form");
 
   // 1) chercher dans la cave
   const found = await apiGet(API_URL + "?action=find&ean=" + encodeURIComponent(ean));
   if (!found.ok) {
-    setStatus("Erreur API");
+    s("Erreur API");
     alert(found.error || "Erreur API");
     return;
   }
