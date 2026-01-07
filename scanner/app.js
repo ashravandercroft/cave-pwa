@@ -155,6 +155,7 @@ function renderResult() {
   `;
 
   show("result");
+   alert("HTML result = \n\n" + $("result").innerHTML);
 }
 
 function toggleInfoBox() {
