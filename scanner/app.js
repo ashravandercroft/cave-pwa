@@ -1,5 +1,10 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbyxfNO9zWm3CT-GACd0oQE_ambHcJ33VHrQOxVxQIIEEpuv53G_A08cWqHXOsYcofaD/exec";
-alert("scanner v2 chargé");
+// Remplacez cette URL par votre Apps Script /exec
+const API_URL = "VOTRE_URL_APPS_SCRIPT_EXEC";
+
+/* ===========================
+   DEBUG : vérifier chargement
+   =========================== */
+alert("scanner app.js chargé (debug)"); // À enlever après debug
 
 const $ = (id) => document.getElementById(id);
 
@@ -32,12 +37,12 @@ function normalizeEan(ean) {
 }
 
 function fillFormFromProduct(p) {
-  $("f_nom").value = p.nom || "";
-  $("f_domaine").value = p.domaine || "";
-  $("f_appellation").value = p.appellation || "";
-  $("f_millesime").value = p.millesime || "";
-  $("f_couleur").value = p.couleur || "";
-  $("f_format").value = p.format || "";
+  $("f_nom").value = (p && p.nom) ? p.nom : "";
+  $("f_domaine").value = (p && p.domaine) ? p.domaine : "";
+  $("f_appellation").value = (p && p.appellation) ? p.appellation : "";
+  $("f_millesime").value = (p && p.millesime) ? p.millesime : "";
+  $("f_couleur").value = (p && p.couleur) ? p.couleur : "";
+  $("f_format").value = (p && p.format) ? p.format : "";
 }
 
 function getFormData() {
@@ -65,12 +70,12 @@ async function lookup(ean) {
   const found = await apiGet(API_URL + "?action=find&ean=" + encodeURIComponent(ean));
   if (!found.ok) {
     setStatus("Erreur API");
-    alert(found.error || "Erreur API");
+    alert("Erreur API (find) : " + (found.error || "Erreur inconnue"));
     return;
   }
   last.dataInCave = found.data || [];
 
-  // 2) si pas trouvé, essayer Open Food Facts (préremplissage)
+  // 2) tenter Open Food Facts pour préremplir
   let offProduct = null;
   try {
     const off = await fetch("https://world.openfoodfacts.org/api/v0/product/" + ean + ".json");
@@ -93,7 +98,7 @@ async function lookup(ean) {
   renderResult();
   setStatus("Prêt");
 
-  // si aucune donnée cave et pas de fiche complète, on ouvre le formulaire
+  // si pas trouvé en cave, afficher formulaire pour compléter
   if (last.dataInCave.length === 0) {
     show("form");
     fillFormFromProduct(offProduct || { nom:"", domaine:"", appellation:"", millesime:"", couleur:"", format:"" });
@@ -110,7 +115,6 @@ function renderResult() {
   let qtyInfo = "";
 
   if (cave.length > 0) {
-    // plusieurs millésimes possibles
     const total = cave.reduce((s, x) => s + Number(x.quantite || 0), 0);
     title = "Vin trouvé dans votre cave";
     sub = "Références : " + cave.length + " • Total : " + total + " bouteilles";
@@ -147,16 +151,17 @@ function renderResult() {
 
   show("result");
 
+  // IMPORTANT : ces boutons n'existent qu'après renderResult()
   $("btnAdd").addEventListener("click", () => applyAction("add"));
   $("btnRemove").addEventListener("click", () => applyAction("remove"));
-  $("btnInfo").addEventListener("click", () => {
-    const box = $("infoBox");
-    box.classList.toggle("hidden");
-  });
+  $("btnInfo").addEventListener("click", () => $("infoBox").classList.toggle("hidden"));
 }
 
 function buildInfoLinks(ean, obj) {
-  const name = obj && (obj.nom || obj.domaine) ? `${obj.nom || ""} ${obj.domaine || ""} ${obj.millesime || ""}`.trim() : ean;
+  const name = obj && (obj.nom || obj.domaine)
+    ? `${obj.nom || ""} ${obj.domaine || ""} ${obj.millesime || ""}`.trim()
+    : ean;
+
   const q = encodeURIComponent(name);
   return {
     vivino: `https://www.vivino.com/search/wines?q=${q}`,
@@ -175,11 +180,20 @@ function escapeHtml(s) {
     .replaceAll("'", "&#039;");
 }
 
+/* ===========================
+   ÉTAPE 2 : DEBUG APPLYACTION
+   =========================== */
 async function applyAction(action) {
-  const ean = last.ean;
-  if (!ean) return;
+  // DEBUG 1 : vérifier que le clic arrive ici
+  alert("applyAction appelé : " + action);
 
-  // si plusieurs millésimes en cave, demander lequel
+  const ean = last.ean;
+  if (!ean) {
+    alert("EAN absent (il faut d'abord faire Chercher).");
+    return;
+  }
+
+  // Choix millésime si plusieurs entrées avec même EAN
   let millesime = "";
   if (last.dataInCave.length > 1) {
     const choices = last.dataInCave.map(x => x.millesime || "NV");
@@ -188,13 +202,12 @@ async function applyAction(action) {
   } else if (last.dataInCave.length === 1) {
     millesime = (last.dataInCave[0].millesime || "NV").toString();
   } else {
-    // pas en cave : on prend le formulaire si rempli
     const f = getFormData();
     millesime = (f.millesime || "NV").trim() || "NV";
   }
 
-  // si add et pas en cave : on crée minimalement via add (API crée si absent)
   const base = getFormData();
+
   const payload = {
     action,
     ean,
@@ -209,12 +222,27 @@ async function applyAction(action) {
     source: "scanner"
   };
 
+  // DEBUG 2 : afficher ce qu’on envoie
+  alert("Je vais envoyer ce payload :\n" + JSON.stringify(payload, null, 2));
+
   setStatus(action === "add" ? "Ajout…" : "Sortie…");
-  const res = await apiPost(payload);
-  alert(JSON.stringify(res));
-  if (!res.ok) {
+
+  let res;
+  try {
+    res = await apiPost(payload);
+  } catch (e) {
     setStatus("Erreur");
-    alert(res.error || "Erreur API");
+    alert("Erreur réseau / fetch : " + e.message);
+    return;
+  }
+
+  // DEBUG 3 : afficher la réponse API
+  alert("Réponse API :\n" + JSON.stringify(res, null, 2));
+  console.log("API response:", res);
+
+  if (!res || !res.ok) {
+    setStatus("Erreur");
+    alert("Erreur API : " + ((res && res.error) ? res.error : "Réponse inconnue"));
     return;
   }
 
@@ -228,7 +256,6 @@ async function upsert() {
 
   const f = getFormData();
   if (!f.nom) return alert("Le nom est obligatoire.");
-  if (!f.couleur) return alert("La couleur est recommandée (au minimum).");
 
   const payload = {
     action: "upsert",
@@ -247,6 +274,8 @@ async function upsert() {
 
   setStatus("Enregistrement…");
   const res = await apiPost(payload);
+  alert("Réponse API (upsert) :\n" + JSON.stringify(res, null, 2));
+
   if (!res.ok) {
     setStatus("Erreur");
     alert(res.error || "Erreur API");
@@ -257,12 +286,12 @@ async function upsert() {
   await lookup(ean);
 }
 
-/* Scan caméra basique (si BarcodeDetector existe) */
+/* Scan caméra simple (BarcodeDetector si disponible) */
 let stream = null;
 
 async function startScan() {
   if (!("BarcodeDetector" in window)) {
-    alert("Le scan caméra automatique n’est pas disponible sur cet iPhone dans cette version. Utilisez la saisie EAN pour l’instant (on ajoutera QuaggaJS ensuite).");
+    alert("Scan caméra non disponible ici. Utilisez la saisie EAN pour l’instant.");
     return;
   }
 
@@ -315,9 +344,4 @@ function bind() {
 (function init() {
   bind();
   setStatus("Prêt");
-
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("sw.js").catch(() => {});
-  }
 })();
-
