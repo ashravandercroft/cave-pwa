@@ -413,6 +413,8 @@ function bind() {
   $("cameraWrap")?.addEventListener("click", (e) => {
   if (e.target && e.target.id === "cameraWrap") stopScan();
 });
+  $("btnLookup")?.addEventListener("click", () => lookup($("ean")?.value || ""));
+
 
 }
 
