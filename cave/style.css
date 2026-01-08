@@ -213,3 +213,70 @@ body{
   color: var(--muted);
   font-size: 14px;
 }
+
+/* =========================
+   Bandeau orange haut (style app)
+   ========================= */
+
+.topBanner{
+  background: linear-gradient(180deg, #ff8a00, #ff6a00);
+  padding: 18px 14px 20px;
+  margin: 0 -14px 14px; /* étend jusqu'aux bords du container */
+  border-bottom-left-radius: 22px;
+  border-bottom-right-radius: 22px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.10);
+}
+
+.topBannerInner{
+  max-width: 920px;
+  margin: 0 auto;
+  display:flex;
+  justify-content: space-between;
+  align-items:center;
+  gap: 12px;
+}
+
+.topText h1{
+  margin:0;
+  font-size: 30px;
+  letter-spacing: -0.7px;
+  color: #fff;
+}
+
+.topText .subtitle{
+  margin-top:6px;
+  color: rgba(255,255,255,.88);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.topRight{
+  display:flex;
+  align-items:center;
+  gap: 12px;
+}
+
+/* badge sur fond orange : plus translucide */
+.badgeOnBanner{
+  background: rgba(255,255,255,.22);
+  border-color: rgba(255,255,255,.35);
+  color: #fff;
+  box-shadow: none;
+}
+
+/* Logo bouteille */
+.bottleIcon{
+  width: 44px;
+  height: 44px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius: 14px;
+  background: rgba(255,255,255,.18);
+  border: 1px solid rgba(255,255,255,.30);
+}
+
+.bottleIcon svg{
+  width: 28px;
+  height: 28px;
+}
