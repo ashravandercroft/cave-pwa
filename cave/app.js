@@ -22,6 +22,18 @@ async function apiPost(payload){
 
 function normalize(s){ return (s || "").toString().trim().toLowerCase(); }
 
+function escapeHtml(s) {
+  return (s || "")
+    .toString()
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+/* ---------- AFFICHAGE ---------- */
+
 function fmtWineTitle(o){
   const nom = (o.nom || "").trim() || "Vin";
   return nom;
@@ -37,6 +49,8 @@ function fmtMeta(o){
   if (empl) parts.push("Emplacement : " + empl);
   return parts.join(" • ");
 }
+
+/* ---------- FILTRES ---------- */
 
 function matches(o){
   const q = normalize($("q")?.value);
@@ -54,11 +68,87 @@ function matches(o){
   return Number(o.quantite || 0) > 0;
 }
 
+/* ---------- TRI ---------- */
+
+function parseYear(millesime){
+  const s = (millesime || "").toString().trim();
+  if (!s) return -1;
+  if (s.toUpperCase() === "NV") return -1;
+
+  const match = s.match(/\b(19|20)\d{2}\b/);
+  if (!match) return -1;
+
+  return parseInt(match[0], 10);
+}
+
+function compare(a, b){
+  const sortBy = $("sortBy")?.value || "name";
+  const order = $("sortOrder")?.value || "asc";
+  const dir = order === "desc" ? -1 : 1;
+
+  // Nom
+  if (sortBy === "name") {
+    const an = normalize(a.nom);
+    const bn = normalize(b.nom);
+    if (an < bn) return -1 * dir;
+    if (an > bn) return 1 * dir;
+    // tie-breaker : domaine puis millésime
+    const ad = normalize(a.domaine);
+    const bd = normalize(b.domaine);
+    if (ad < bd) return -1 * dir;
+    if (ad > bd) return 1 * dir;
+    const ay = parseYear(a.millesime);
+    const by = parseYear(b.millesime);
+    return (ay - by) * dir;
+  }
+
+  // Millésime
+  if (sortBy === "year") {
+    const ay = parseYear(a.millesime);
+    const by = parseYear(b.millesime);
+
+    // Gérer NV proprement : NV toujours en bas (quel que soit l'ordre)
+    const aNV = ay === -1;
+    const bNV = by === -1;
+    if (aNV && !bNV) return 1;
+    if (!aNV && bNV) return -1;
+
+    if (ay !== by) return (ay - by) * dir;
+
+    // tie-breaker : nom
+    const an = normalize(a.nom);
+    const bn = normalize(b.nom);
+    if (an < bn) return -1 * dir;
+    if (an > bn) return 1 * dir;
+    return 0;
+  }
+
+  // Quantité
+  if (sortBy === "qty") {
+    const aq = Number(a.quantite || 0);
+    const bq = Number(b.quantite || 0);
+    if (aq !== bq) return (aq - bq) * dir;
+
+    // tie-breaker : nom
+    const an = normalize(a.nom);
+    const bn = normalize(b.nom);
+    if (an < bn) return -1 * dir;
+    if (an > bn) return 1 * dir;
+    return 0;
+  }
+
+  return 0;
+}
+
+/* ---------- RENDER ---------- */
+
 function render(){
   const list = $("list");
   list.innerHTML = "";
 
   view = all.filter(matches);
+  view.sort(compare);
+
   $("empty").classList.toggle("hidden", view.length > 0);
 
   const totalBottles = view.reduce((s, x) => s + Number(x.quantite || 0), 0);
@@ -102,15 +192,7 @@ function render(){
   });
 }
 
-function escapeHtml(s) {
-  return (s || "")
-    .toString()
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
+/* ---------- ACTIONS +/- ---------- */
 
 async function applyAction(action, o){
   const txt = prompt(
@@ -156,13 +238,14 @@ async function applyAction(action, o){
     o.quantite = newQty;
   }
 
-  // Message simple
   const title = (o.nom || "Le vin").trim();
   alert(action === "add" ? `"${title}" ajouté (+${qty}).` : `"${title}" sorti (–${qty}).`);
 
   setStatus("Prêt");
   render();
 }
+
+/* ---------- DATA ---------- */
 
 async function refresh(){
   setStatus("Chargement…");
@@ -177,9 +260,16 @@ async function refresh(){
   render();
 }
 
+/* ---------- BIND ---------- */
+
 function bind(){
   ["q","filterCouleur","filterEmplacement"].forEach(id => {
     $(id)?.addEventListener("input", () => render());
+    $(id)?.addEventListener("change", () => render());
+  });
+
+  // tri
+  ["sortBy","sortOrder"].forEach(id => {
     $(id)?.addEventListener("change", () => render());
   });
 
@@ -188,6 +278,8 @@ function bind(){
     $("q").value = "";
     $("filterCouleur").value = "";
     $("filterEmplacement").value = "";
+    $("sortBy").value = "name";
+    $("sortOrder").value = "asc";
     render();
   });
 }
