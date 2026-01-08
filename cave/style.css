@@ -215,15 +215,14 @@ body{
 }
 
 /* =========================
-   Bandeau orange haut (style app)
+   Bandeau bordeaux haut (plein, sans arrondi)
    ========================= */
 
 .topBanner{
-  background: linear-gradient(180deg, #ff8a00, #ff6a00);
+  background: linear-gradient(180deg, #5b1021, #3c0b16); /* bordeaux */
   padding: 18px 14px 20px;
   margin: 0 -14px 14px; /* étend jusqu'aux bords du container */
-  border-bottom-left-radius: 22px;
-  border-bottom-right-radius: 22px;
+  border-radius: 0; /* PAS d'arrondi */
   box-shadow: 0 10px 30px rgba(0,0,0,.10);
 }
 
@@ -256,13 +255,15 @@ body{
   gap: 12px;
 }
 
-/* badge sur fond orange : plus translucide */
+/* badge sur fond bordeaux */
 .badgeOnBanner{
-  background: rgba(255,255,255,.22);
-  border-color: rgba(255,255,255,.35);
+  background: rgba(255,255,255,.18);
+  border-color: rgba(255,255,255,.28);
   color: #fff;
   box-shadow: none;
 }
+
+
 
 /* Logo bouteille */
 .bottleIcon{
