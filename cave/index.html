@@ -11,13 +11,28 @@
 <body>
   <main class="container">
 
-    <div class="header">
-      <div class="titleWrap">
-        <h1>La cave de Lydie</h1>
-        <div class="subtitle">Retrouvez vos vins, ajustez vos stocks et filtrez en un clin d’œil.</div>
-      </div>
-      <div class="badge" id="badgeCount">Chargement…</div>
+    <div class="topBanner">
+  <div class="topBannerInner">
+    <div class="topText">
+      <h1>La cave de Lydie</h1>
+      <div class="subtitle">Retrouvez vos vins, ajustez vos stocks et filtrez en un clin d’œil.</div>
     </div>
+
+    <div class="topRight">
+      <div class="badge badgeOnBanner" id="badgeCount">Chargement…</div>
+
+      <!-- Logo bouteille minimaliste (SVG) -->
+      <div class="bottleIcon" aria-hidden="true">
+        <svg viewBox="0 0 64 64" fill="none">
+          <path d="M27 6h10v10c0 2 2 3 3 4l3 3c2 2 3 4 3 7v22c0 7-6 12-17 12S15 59 15 52V30c0-3 1-5 3-7l3-3c1-1 3-2 3-4V6Z" stroke="white" stroke-width="3" stroke-linejoin="round"/>
+          <path d="M24 12h16" stroke="white" stroke-width="3" stroke-linecap="round"/>
+          <path d="M22 34h20" stroke="white" stroke-width="3" stroke-linecap="round" opacity="0.9"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+</div>
+
 
     <div class="card">
       <div class="sectionTitle">Recherche, filtres & tri</div>
