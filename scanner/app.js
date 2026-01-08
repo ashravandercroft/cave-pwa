@@ -410,17 +410,25 @@ function stopScan() {
 
 
 function bind() {
-  $("btnLookup").addEventListener("click", () => lookup($("ean").value));
-  $("btnScan").addEventListener("click", startScan);
-  $("btnStop").addEventListener("click", stopScan);
-  $("btnUpsert").addEventListener("click", upsert);
-  $("cameraWrap")?.addEventListener("click", (e) => {
-  if (e.target && e.target.id === "cameraWrap") stopScan();
-});
   $("btnLookup")?.addEventListener("click", () => lookup($("ean")?.value || ""));
+  $("btnScan")?.addEventListener("click", startScan);
+  $("btnStop")?.addEventListener("click", stopScan);
+  $("btnUpsert")?.addEventListener("click", upsert);
 
+  // fermer la caméra si on clique en dehors de la modal
+  $("cameraWrap")?.addEventListener("click", (e) => {
+    if (e.target && e.target.id === "cameraWrap") stopScan();
+  });
 
+  // Entrée clavier => lancer recherche
+  $("ean")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      lookup($("ean")?.value || "");
+    }
+  });
 }
+
 
 (function init() {
   bind();
