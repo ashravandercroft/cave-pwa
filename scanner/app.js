@@ -66,14 +66,14 @@ async function lookup(ean) {
   if (!ean) { alert("Veuillez saisir ou scanner un code-barres."); return; }
 
   last.ean = ean;
-  s("Recherche…");
+  setStatus("Recherche…");
   hide("result");
   hide("form");
 
   // 1) chercher dans la cave
   const found = await apiGet(API_URL + "?action=find&ean=" + encodeURIComponent(ean));
   if (!found.ok) {
-    s("Erreur API");
+    setStatus("Erreur API");
     alert(found.error || "Erreur API");
     return;
   }
