@@ -3,6 +3,10 @@ const API_URL = "https://script.google.com/macros/s/AKfycbyxfNO9zWm3CT-GACd0oQE_
 
 const $ = (id) => document.getElementById(id);
 
+window.__APP_LOADED__ = "OK";
+alert("APP.JS chargé");
+
+
 let last = {
   ean: "",
   dataInCave: [],
