@@ -95,7 +95,7 @@ body{
   width:100%;
   border-radius: 14px;
   border: 1px solid var(--line);
-  background: rgba(255,255,255,.8);
+  background: rgba(255,255,255,.9);
   color: var(--text);
   padding: 12px 12px;
   font-size: 14px;
