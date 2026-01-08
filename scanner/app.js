@@ -248,6 +248,15 @@ async function applyAction(action) {
     return;
   }
 
+  // Confirmation utilisateur
+  const name = (payload.nom || "").trim();
+  if (action === "add") {
+    alert((name ? `"${name}" ` : "Le vin ") + "a été ajouté à la cave (+1).");
+  } else if (action === "remove") {
+    alert((name ? `"${name}" ` : "Le vin ") + "a été sorti de la cave (–1).");
+  }
+
+  
   // recharger l'état (sans "effacer" l'écran)
   await lookup(ean, { keepScreen: true });
 }
