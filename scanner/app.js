@@ -6,7 +6,6 @@ const $ = (id) => document.getElementById(id);
 window.__APP_LOADED__ = "OK";
 alert("APP.JS chargé");
 
-
 let last = {
   ean: "",
   dataInCave: [],
@@ -40,13 +39,26 @@ function normalizeEan(ean) {
   return (ean || "").toString().replace(/\D/g, "").trim();
 }
 
+/**
+ * IMPORTANT : ne remplir les champs que s'ils sont vides
+ * => évite d'écraser le millésime que vous avez tapé
+ */
 function fillFormFromProduct(p) {
-  $("f_nom").value = p?.nom || "";
-  $("f_domaine").value = p?.domaine || "";
-  $("f_appellation").value = p?.appellation || "";
-  $("f_millesime").value = p?.millesime || "";
-  $("f_couleur").value = p?.couleur || "";
-  $("f_format").value = p?.format || "";
+  const setIfEmpty = (id, value) => {
+    const el = $(id);
+    if (!el) return;
+    if (el.value && el.value.trim() !== "") return;
+    el.value = value || "";
+  };
+
+  setIfEmpty("f_nom", p?.nom);
+  setIfEmpty("f_domaine", p?.domaine);
+  setIfEmpty("f_appellation", p?.appellation);
+  setIfEmpty("f_millesime", p?.millesime);
+  setIfEmpty("f_format", p?.format);
+
+  const c = $("f_couleur");
+  if (c && !c.value) c.value = p?.couleur || "";
 }
 
 function getFormData() {
@@ -61,14 +73,22 @@ function getFormData() {
   };
 }
 
-async function lookup(ean) {
+/**
+ * lookup(ean, opts)
+ * opts.keepScreen = true => ne cache pas result/form au démarrage
+ */
+async function lookup(ean, opts = {}) {
   ean = normalizeEan(ean);
   if (!ean) { alert("Veuillez saisir ou scanner un code-barres."); return; }
 
   last.ean = ean;
   setStatus("Recherche…");
-  hide("result");
-  hide("form");
+
+  // si on ne veut pas "tout faire disparaître"
+  if (!opts.keepScreen) {
+    hide("result");
+    hide("form");
+  }
 
   // 1) chercher dans la cave
   const found = await apiGet(API_URL + "?action=find&ean=" + encodeURIComponent(ean));
@@ -149,9 +169,8 @@ function renderResult() {
 
     <div class="actionsRow">
       <button type="button" class="btn primary" id="btnAdd">+1</button>
-<button type="button" class="btn danger" id="btnRemove">-1</button>
-<button type="button" class="btn secondary" id="btnInfo">Infos</button>
-
+      <button type="button" class="btn danger" id="btnRemove">-1</button>
+      <button type="button" class="btn secondary" id="btnInfo">Infos</button>
     </div>
 
     <div id="infoBox" class="infoLinks hidden">
@@ -167,7 +186,6 @@ function renderResult() {
   $("btnRemove").onclick = () => applyAction("remove");
   $("btnInfo").onclick = () => $("infoBox").classList.toggle("hidden");
 }
-
 
 function buildInfoLinks(ean, obj) {
   const name = obj && (obj.nom || obj.domaine) ? `${obj.nom || ""} ${obj.domaine || ""} ${obj.millesime || ""}`.trim() : ean;
@@ -207,7 +225,6 @@ async function applyAction(action) {
     millesime = (f.millesime || "NV").trim() || "NV";
   }
 
-  // si add et pas en cave : on crée minimalement via add (API crée si absent)
   const base = getFormData();
   const payload = {
     action,
@@ -231,8 +248,8 @@ async function applyAction(action) {
     return;
   }
 
-  // recharger l'état
-  await lookup(ean);
+  // recharger l'état (sans "effacer" l'écran)
+  await lookup(ean, { keepScreen: true });
 }
 
 async function upsert() {
@@ -268,11 +285,14 @@ async function upsert() {
 
   setStatus("Enregistré");
   alert("Fiche enregistrée.");
-  await lookup(ean);
-}
 
-/* Scan caméra basique (si BarcodeDetector existe) */
-let stream = null;
+  // recharger sans "effacer" et remonter vers les boutons +1/-1
+  await lookup(ean, { keepScreen: true });
+
+  setTimeout(() => {
+    $("result")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, 200);
+}
 
 /* ===========================
    Scan caméra (QuaggaJS)
@@ -283,7 +303,6 @@ let lastDetected = "";
 let lastDetectedAt = 0;
 
 function startScan() {
-  // Quagga doit être chargé par le script CDN
   if (!window.Quagga) {
     alert("Quagga n'est pas chargé. Vérifiez que le script Quagga est bien dans index.html.");
     return;
@@ -298,7 +317,6 @@ function startScan() {
     return;
   }
 
-  // Reset des gardes
   lastDetected = "";
   lastDetectedAt = 0;
 
@@ -317,7 +335,7 @@ function startScan() {
       patchSize: "medium",
       halfSample: true
     },
-    numOfWorkers: 0, // iOS Safari : souvent mieux à 0
+    numOfWorkers: 0,
     frequency: 20,
     decoder: {
       readers: [
@@ -341,17 +359,14 @@ function startScan() {
     Quagga.start();
     quaggaRunning = true;
 
-    // Dessin de la zone détectée (optionnel)
     Quagga.onProcessed(onQuaggaProcessed);
     Quagga.onDetected(onQuaggaDetected);
   });
 }
 
 function onQuaggaProcessed(result) {
-  // Optionnel : dessiner une boîte autour du code-barres
   const drawingCtx = Quagga.canvas.ctx.overlay;
   const drawingCanvas = Quagga.canvas.dom.overlay;
-
   if (!drawingCtx || !drawingCanvas) return;
 
   drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
@@ -382,8 +397,6 @@ function onQuaggaDetected(data) {
   const ean = normalizeEan(code);
   if (!ean) return;
 
-  // Garde anti "double scan"
-  // iOS peut détecter plusieurs fois le même code : on évite les doublons
   const now = Date.now();
   if (ean === lastDetected && now - lastDetectedAt < 1500) return;
 
@@ -408,19 +421,16 @@ function stopScan() {
   setStatus("Prêt");
 }
 
-
 function bind() {
   $("btnLookup")?.addEventListener("click", () => lookup($("ean")?.value || ""));
   $("btnScan")?.addEventListener("click", startScan);
   $("btnStop")?.addEventListener("click", stopScan);
   $("btnUpsert")?.addEventListener("click", upsert);
 
-  // fermer la caméra si on clique en dehors de la modal
   $("cameraWrap")?.addEventListener("click", (e) => {
     if (e.target && e.target.id === "cameraWrap") stopScan();
   });
 
-  // Entrée clavier => lancer recherche
   $("ean")?.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -428,7 +438,6 @@ function bind() {
     }
   });
 }
-
 
 (function init() {
   bind();
@@ -441,10 +450,8 @@ function bind() {
 
 function lookupFromUI() {
   const input = document.getElementById("ean");
-  if (input) input.blur(); // iOS : évite les clics “perdus” quand le clavier est ouvert
+  if (input) input.blur();
   const val = input ? input.value : "";
   lookup(val);
 }
-
-// rendre accessible au onclick HTML
 window.lookupFromUI = lookupFromUI;
