@@ -20,7 +20,7 @@
     </div>
 
     <div class="card">
-      <div class="sectionTitle">Recherche & filtres</div>
+      <div class="sectionTitle">Recherche, filtres & tri</div>
 
       <div class="controls">
         <input id="q" class="input" placeholder="Rechercher (nom, domaine, EAN, millésime…)" />
@@ -34,6 +34,22 @@
         </select>
 
         <input id="filterEmplacement" class="input" placeholder="Emplacement (ex : Cave / Étage 2)" />
+      </div>
+
+      <!-- NOUVEAU : TRI -->
+      <div class="controls" style="margin-top:10px;">
+        <select id="sortBy">
+          <option value="name">Trier par : Nom</option>
+          <option value="year">Trier par : Millésime</option>
+          <option value="qty">Trier par : Quantité</option>
+        </select>
+
+        <select id="sortOrder">
+          <option value="asc">Ordre : Croissant</option>
+          <option value="desc">Ordre : Décroissant</option>
+        </select>
+
+        <div></div>
       </div>
 
       <div class="row" style="margin-top:10px; justify-content: space-between;">
