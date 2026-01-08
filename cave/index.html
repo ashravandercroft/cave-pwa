@@ -4,70 +4,52 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Ma cave</title>
-
-  <link rel="manifest" href="manifest.webmanifest">
-  <meta name="theme-color" content="#ffffff">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-
-  <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="style.css?v=1" />
 </head>
-<body>
-  <header class="topbar">
-    <div class="title">
-      <h1>Ma cave</h1>
-      <div id="syncStatus" class="muted">Synchronisation…</div>
-    </div>
-    <div class="stats" id="stats"></div>
-  </header>
 
-  <main class="main">
-    <section class="controls">
-      <input id="search" class="search" type="search" placeholder="Rechercher (nom, domaine, appellation, emplacement, millésime)" />
-      <div class="filters">
+<body>
+  <main class="container">
+
+    <div class="header">
+      <div class="titleWrap">
+        <h1>Ma cave</h1>
+        <div class="subtitle">Retrouvez vos vins, ajustez vos stocks et filtrez en un clin d’œil.</div>
+      </div>
+      <div class="badge" id="badgeCount">Chargement…</div>
+    </div>
+
+    <div class="card">
+      <div class="sectionTitle">Recherche & filtres</div>
+
+      <div class="controls">
+        <input id="q" class="input" placeholder="Rechercher (nom, domaine, EAN, millésime…)" />
+
         <select id="filterCouleur">
           <option value="">Couleur (toutes)</option>
+          <option value="rouge">Rouge</option>
+          <option value="blanc">Blanc</option>
+          <option value="rose">Rosé</option>
+          <option value="champagne">Effervescent</option>
         </select>
-        <select id="filterMillesime">
-          <option value="">Millésime (tous)</option>
-        </select>
-        <select id="filterEmplacement">
-          <option value="">Emplacement (tous)</option>
-        </select>
-        <select id="sortBy">
-          <option value="updated_desc">Tri : récent</option>
-          <option value="qty_desc">Tri : quantité</option>
-          <option value="name_asc">Tri : nom</option>
-          <option value="place_asc">Tri : emplacement</option>
-          <option value="year_desc">Tri : millésime</option>
-        </select>
+
+        <input id="filterEmplacement" class="input" placeholder="Emplacement (ex : Cave / Étage 2)" />
       </div>
-    </section>
 
-    <section id="viewInventory" class="view active">
-      <div id="list" class="list"></div>
-    </section>
+      <div class="row" style="margin-top:10px; justify-content: space-between;">
+        <div class="small" id="status">Prêt</div>
+        <div class="row" style="gap:8px;">
+          <button id="btnRefresh" type="button" class="btn secondary">Rafraîchir</button>
+          <button id="btnClear" type="button" class="btn secondary">Effacer</button>
+        </div>
+      </div>
+    </div>
 
-    <section id="viewPlaces" class="view">
-      <div id="places" class="places"></div>
-    </section>
+    <div id="list" class="list"></div>
+    <div id="empty" class="empty hidden">Aucune bouteille trouvée.</div>
 
-    <section id="viewLow" class="view">
-      <div id="lowList" class="list"></div>
-    </section>
-
-    <section id="viewDetails" class="view">
-      <button class="back" id="backBtn">Retour</button>
-      <div id="details" class="details"></div>
-    </section>
   </main>
 
-  <nav class="tabbar">
-    <button id="tabInventory" class="tab active">Inventaire</button>
-    <button id="tabPlaces" class="tab">Emplacements</button>
-    <button id="tabLow" class="tab">Stock bas</button>
-  </nav>
-
-  <script src="app.js"></script>
+  <script src="app.js?v=1"></script>
 </body>
 </html>
