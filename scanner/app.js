@@ -426,3 +426,13 @@ function bind() {
     navigator.serviceWorker.register("sw.js").catch(() => {});
   }
 })();
+
+function lookupFromUI() {
+  const input = document.getElementById("ean");
+  if (input) input.blur(); // iOS : évite les clics “perdus” quand le clavier est ouvert
+  const val = input ? input.value : "";
+  lookup(val);
+}
+
+// rendre accessible au onclick HTML
+window.lookupFromUI = lookupFromUI;
