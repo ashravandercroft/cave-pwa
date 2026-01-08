@@ -207,9 +207,26 @@ function escapeHtml(s) {
     .replaceAll("'", "&#039;");
 }
 
+/**
+ * OPTION A : choisir la quantité à ajouter/retirer via prompt
+ * => envoie payload.qty à l'API
+ */
 async function applyAction(action) {
   const ean = last.ean;
   if (!ean) return;
+
+  // Demander la quantité
+  const txt = prompt(
+    action === "add" ? "Combien de bouteilles ajouter ?" : "Combien de bouteilles sortir ?",
+    "1"
+  );
+  if (txt === null) return; // annulation
+
+  let qty = parseInt(String(txt).trim(), 10);
+  if (!Number.isFinite(qty) || qty <= 0) {
+    alert("Quantité invalide.");
+    return;
+  }
 
   // si plusieurs millésimes en cave, demander lequel
   let millesime = "";
@@ -228,6 +245,7 @@ async function applyAction(action) {
   const base = getFormData();
   const payload = {
     action,
+    qty, // <--- IMPORTANT (Option A)
     ean,
     millesime,
     nom: base.nom,
@@ -240,7 +258,8 @@ async function applyAction(action) {
     source: "scanner"
   };
 
-  setStatus(action === "add" ? "Ajout…" : "Sortie…");
+  setStatus(action === "add" ? `Ajout… (+${qty})` : `Sortie… (-${qty})`);
+
   const res = await apiPost(payload);
   if (!res.ok) {
     setStatus("Erreur");
@@ -251,12 +270,11 @@ async function applyAction(action) {
   // Confirmation utilisateur
   const name = (payload.nom || "").trim();
   if (action === "add") {
-    alert((name ? `"${name}" ` : "Le vin ") + "a été ajouté à la cave (+1).");
+    alert((name ? `"${name}" ` : "Le vin ") + `a été ajouté à la cave (+${qty}).`);
   } else if (action === "remove") {
-    alert((name ? `"${name}" ` : "Le vin ") + "a été sorti de la cave (–1).");
+    alert((name ? `"${name}" ` : "Le vin ") + `a été sorti de la cave (–${qty}).`);
   }
 
-  
   // recharger l'état (sans "effacer" l'écran)
   await lookup(ean, { keepScreen: true });
 }
