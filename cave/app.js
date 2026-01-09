@@ -1,5 +1,6 @@
 // /cave/app.js (modifié)
 // Objectif : nouvelle présentation des vins + mini-encadré commentaire + ligne de boutons selon ton ordre
+// + Robustesse : éviter "Chargement" infini (timeout + erreurs visibles) + tolérer réponses non-JSON
 
 // Même API que le scanner
 const API_URL = "https://script.google.com/macros/s/AKfycbyxfNO9zWm3CT-GACd0oQE_ambHcJ33VHrQOxVxQIIEEpuv53G_A08cWqHXOsYcofaD/exec";
@@ -15,9 +16,21 @@ function setStatus(t){
   if (el) el.textContent = t || "";
 }
 
+/* ======================
+   API
+   ====================== */
+
 async function apiGet(url){
-  const res = await fetch(url, { method:"GET" });
-  return res.json();
+  // no-store pour limiter les effets cache / SW
+  const res = await fetch(url, { method:"GET", cache:"no-store" });
+
+  // On lit en texte d'abord : si Apps Script renvoie du HTML, res.json() plante
+  const txt = await res.text();
+  try {
+    return JSON.parse(txt);
+  } catch (e) {
+    return { ok:false, error:"Réponse API non-JSON", raw: txt.slice(0, 800) };
+  }
 }
 
 async function apiPost(payload){
@@ -158,3 +171,468 @@ function compare(a, b){
     if (an > bn) return 1 * dir;
     return 0;
   }
+
+  return 0;
+}
+
+/* ---------- RENDER ---------- */
+
+function render(){
+  const list = $("list");
+  if (!list) {
+    alert('Erreur: élément HTML id="list" introuvable sur /cave');
+    return;
+  }
+  list.innerHTML = "";
+
+  view = all.filter(matches);
+  view.sort(compare);
+
+  $("empty")?.classList?.toggle("hidden", view.length > 0);
+
+  const totalBottles = view.reduce((s, x) => s + Number(x.quantite || 0), 0);
+  if ($("badgeCount")) $("badgeCount").textContent = `${totalBottles} bouteille(s)`;
+
+  for (const o of view){
+    const div = document.createElement("div");
+    div.className = "item";
+
+    const k = o.key || "";
+    const sk = safeKey(k);
+
+    const commentText = (o.comment || "").trim();
+    const qty = Number(o.quantite || 0);
+    const ratingText = (o.rating === 0 || o.rating) ? `${o.rating}/10` : "Note —";
+
+    div.innerHTML = `
+      <!-- Domaine + millésime en premier, en gras -->
+      <div class="itemTitle" style="font-weight:800;">
+        ${escapeHtml(fmtHeader(o))}
+      </div>
+
+      <!-- Nom -->
+      <div style="margin-top:6px; font-size:14px; color: rgba(17,24,39,.92);">
+        ${escapeHtml(fmtWineTitle(o))}
+      </div>
+
+      <!-- En stock + quantité (et note en style bouton) -->
+      <div style="margin-top:10px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+        <div style="font-size:13px; color: rgba(17,24,39,.72);">
+          En stock : <span style="font-weight:900; color: rgba(17,24,39,.92);">${escapeHtml(String(qty))}</span>
+        </div>
+
+        <!-- Note au style "bouton" (comme + / - / Modifier) -->
+        <div class="btn secondary" style="padding:6px 10px; cursor:default; user-select:none;">
+          ${escapeHtml(ratingText)}
+        </div>
+      </div>
+
+      <!-- EAN -->
+      <div class="small" style="margin-top:8px;">
+        EAN : ${escapeHtml(o.ean || "")}
+      </div>
+
+      <!-- Espace -->
+      <div style="height:12px;"></div>
+
+      <!-- Commentaire en mini-encadré -->
+      <div class="item" style="padding:10px; margin:0; border-radius:14px; box-shadow: 0 6px 18px rgba(0,0,0,.04);">
+        <div class="small" id="comment_text_${sk}" style="${commentText ? "" : "display:none;"} white-space:pre-wrap; color: rgba(17,24,39,.72); font-size:13px;">
+          ${escapeHtml(commentText)}
+        </div>
+        <div class="small" id="comment_empty_${sk}" style="${commentText ? "display:none;" : ""}">
+          (Aucun commentaire)
+        </div>
+      </div>
+
+      <!-- Ligne boutons selon ton ordre -->
+      <div style="display:flex; align-items:center; gap:8px; margin-top:12px; flex-wrap:wrap;">
+        <button type="button" class="btn secondary" data-act="comment" data-key="${escapeHtml(k)}">
+          Ajouter un commentaire
+        </button>
+
+        <button type="button" class="btn secondary" data-act="edit" data-key="${escapeHtml(k)}">
+          Modifier la fiche
+        </button>
+
+        <div style="margin-left:auto; display:flex; gap:8px;">
+          <button type="button" class="btn primary" data-act="add" data-key="${escapeHtml(k)}">+</button>
+          <button type="button" class="btn danger" data-act="remove" data-key="${escapeHtml(k)}">–</button>
+        </div>
+      </div>
+
+      <!-- Edition commentaire inline -->
+      <div class="editBox hidden commentBox" id="comment_${sk}" style="margin-top:10px;">
+        <div class="small" style="margin-bottom:6px;">Commentaire</div>
+        <textarea class="input" id="ct_${sk}" rows="3" maxlength="1000" placeholder="Votre commentaire...">${escapeHtml(commentText)}</textarea>
+
+        <div class="actions" style="margin-top:10px;">
+          <button type="button" class="btn primary" data-act="saveComment" data-key="${escapeHtml(k)}">Enregistrer</button>
+          <button type="button" class="btn secondary" data-act="cancelComment" data-key="${escapeHtml(k)}">Annuler</button>
+        </div>
+      </div>
+
+      <!-- Edition inline (fiche) -->
+      <div class="editBox hidden" id="edit_${sk}">
+        <div class="editGrid">
+          <div>
+            <div class="small" style="margin-bottom:6px;">Nom</div>
+            <input class="input" id="en_${sk}" value="${escapeHtml(o.nom || "")}" placeholder="Nom" />
+          </div>
+
+          <div>
+            <div class="small" style="margin-bottom:6px;">Domaine</div>
+            <input class="input" id="ed_${sk}" value="${escapeHtml(o.domaine || "")}" placeholder="Domaine" />
+          </div>
+
+          <div>
+            <div class="small" style="margin-bottom:6px;">Appellation</div>
+            <input class="input" id="ea_${sk}" value="${escapeHtml(o.appellation || "")}" placeholder="Appellation" />
+          </div>
+
+          <div>
+            <div class="small" style="margin-bottom:6px;">Millésime</div>
+            <input class="input" id="em_${sk}" value="${escapeHtml(o.millesime || "NV")}" placeholder="NV / 2018" />
+          </div>
+
+          <div>
+            <div class="small" style="margin-bottom:6px;">Couleur</div>
+            <input class="input" id="ec_${sk}" value="${escapeHtml(o.couleur || "")}" placeholder="rouge / blanc / rosé" />
+          </div>
+
+          <div>
+            <div class="small" style="margin-bottom:6px;">Format</div>
+            <input class="input" id="ef_${sk}" value="${escapeHtml(o.format || "")}" placeholder="75cl" />
+          </div>
+
+          <div>
+            <div class="small" style="margin-bottom:6px;">Note /10</div>
+            <input class="input" id="er_${sk}" type="number" min="0" max="10" step="0.5" inputmode="decimal"
+              value="${escapeHtml((o.rating === 0 || o.rating) ? String(o.rating) : "")}"
+              placeholder="ex: 7.5" />
+          </div>
+
+          <div style="grid-column: 1 / -1;">
+            <div class="small" style="margin-bottom:6px;">Emplacement</div>
+            <input class="input" id="ee_${sk}" value="${escapeHtml(o.emplacement || "")}" placeholder="Cave / Étage 2" />
+          </div>
+        </div>
+
+        <div class="actions" style="margin-top:10px;">
+          <button type="button" class="btn primary" data-act="save" data-key="${escapeHtml(k)}">Enregistrer</button>
+          <button type="button" class="btn secondary" data-act="cancel" data-key="${escapeHtml(k)}">Annuler</button>
+        </div>
+
+        <div class="small" style="margin-top:10px;">
+          Astuce : changer le millésime crée une nouvelle fiche (EAN + millésime).
+        </div>
+      </div>
+    `;
+
+    list.appendChild(div);
+  }
+
+  // Bind actions (tous les boutons)
+  list.querySelectorAll("button[data-act]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const act = btn.getAttribute("data-act");
+      const key = btn.getAttribute("data-key");
+      const obj = getByKey(key);
+      if (!obj) return;
+
+      if (act === "edit") { toggleEdit(key); return; }
+      if (act === "cancel") { closeEdit(key); return; }
+      if (act === "save") { saveEdit(obj); return; }
+
+      if (act === "comment") { toggleComment(key); return; }
+      if (act === "cancelComment") { closeComment(key); return; }
+      if (act === "saveComment") { saveComment(obj); return; }
+
+      // add/remove
+      applyAction(act, obj);
+    });
+  });
+}
+
+/* ---------- EDITION ---------- */
+
+function toggleEdit(key){
+  const sk = safeKey(key);
+  const box = document.getElementById("edit_" + sk);
+  if (!box) return;
+
+  // Fermer les autres boîtes ouvertes (sans fermer un commentaire en cours)
+  document.querySelectorAll(".editBox").forEach(el => {
+    if (el !== box && !el.classList.contains("commentBox")) el.classList.add("hidden");
+  });
+
+  box.classList.toggle("hidden");
+}
+
+function closeEdit(key){
+  const sk = safeKey(key);
+  const box = document.getElementById("edit_" + sk);
+  if (box) box.classList.add("hidden");
+}
+
+async function saveEdit(o){
+  const sk = safeKey(o.key);
+
+  const nom = document.getElementById("en_" + sk)?.value?.trim() || "";
+  const domaine = document.getElementById("ed_" + sk)?.value?.trim() || "";
+  const appellation = document.getElementById("ea_" + sk)?.value?.trim() || "";
+  const millesime = document.getElementById("em_" + sk)?.value?.trim() || "NV";
+  const couleur = document.getElementById("ec_" + sk)?.value?.trim() || "";
+  const format = document.getElementById("ef_" + sk)?.value?.trim() || "";
+  const emplacement = document.getElementById("ee_" + sk)?.value?.trim() || "";
+  const rating = normalizeRatingHalf(document.getElementById("er_" + sk)?.value ?? "");
+
+  if (!nom) {
+    alert("Le nom est obligatoire.");
+    return;
+  }
+
+  setStatus("Enregistrement…");
+
+  const payload = {
+    action: "upsert",
+    ean: o.ean,
+    millesime,
+
+    old_key: o.key || "",
+    old_millesime: o.millesime || "NV",
+
+    nom,
+    domaine,
+    appellation,
+    couleur,
+    format,
+    emplacement,
+    image_url: o.image_url || "",
+    notes: o.notes || "",
+
+    rating,
+    comment: (o.comment || "").trim(),
+
+    source: "cave"
+  };
+
+  const res = await apiPost(payload);
+  if (!res.ok) {
+    setStatus("Erreur");
+    alert(res.error || "Erreur API");
+    return;
+  }
+
+  setStatus("Enregistré");
+  await refresh();
+
+  const migrated = !!(res.data && res.data.migrated);
+  const movedQty = res.data && res.data.moved_qty !== undefined ? Number(res.data.moved_qty) : 0;
+
+  if (migrated) {
+    alert(
+      "Millésime modifié.\n" +
+      "Stock déplacé : " + movedQty + " bouteille(s).\n" +
+      "Ancienne fiche supprimée."
+    );
+  } else {
+    alert("Fiche mise à jour.");
+  }
+}
+
+/* ---------- COMMENTAIRE ---------- */
+
+function toggleComment(key){
+  const sk = safeKey(key);
+  const box = document.getElementById("comment_" + sk);
+  if (!box) return;
+
+  // Fermer les autres boîtes commentaire ouvertes
+  document.querySelectorAll(".commentBox").forEach(el => {
+    if (el !== box) el.classList.add("hidden");
+  });
+
+  box.classList.toggle("hidden");
+}
+
+function closeComment(key){
+  const sk = safeKey(key);
+  const box = document.getElementById("comment_" + sk);
+  if (box) box.classList.add("hidden");
+}
+
+async function saveComment(o){
+  const sk = safeKey(o.key);
+  const comment = document.getElementById("ct_" + sk)?.value?.trim() || "";
+
+  setStatus("Enregistrement…");
+
+  const payload = {
+    action: "upsert",
+    ean: o.ean,
+    millesime: o.millesime || "NV",
+
+    old_key: o.key || "",
+    old_millesime: o.millesime || "NV",
+
+    nom: o.nom || "",
+    domaine: o.domaine || "",
+    appellation: o.appellation || "",
+    couleur: o.couleur || "",
+    format: o.format || "",
+    emplacement: o.emplacement || "",
+    image_url: o.image_url || "",
+    notes: o.notes || "",
+
+    rating: (o.rating === 0 || o.rating) ? o.rating : "",
+    comment,
+
+    source: "cave"
+  };
+
+  const res = await apiPost(payload);
+  if (!res.ok) {
+    setStatus("Erreur");
+    alert(res.error || "Erreur API");
+    return;
+  }
+
+  setStatus("Enregistré");
+  await refresh();
+}
+
+/* ---------- ACTIONS +/- ---------- */
+
+async function applyAction(action, o){
+  const txt = prompt(
+    action === "add" ? "Combien de bouteilles ajouter ?" : "Combien de bouteilles sortir ?",
+    "1"
+  );
+  if (txt === null) return;
+
+  let qty = parseInt(String(txt).trim(), 10);
+  if (!Number.isFinite(qty) || qty <= 0) {
+    alert("Quantité invalide.");
+    return;
+  }
+
+  setStatus(action === "add" ? `Ajout… (+${qty})` : `Sortie… (–${qty})`);
+
+  const payload = {
+    action,
+    qty,
+    ean: o.ean,
+    millesime: o.millesime || "NV",
+    nom: o.nom || "",
+    domaine: o.domaine || "",
+    appellation: o.appellation || "",
+    couleur: o.couleur || "",
+    format: o.format || "",
+    emplacement: o.emplacement || "",
+    image_url: o.image_url || "",
+    notes: o.notes || "",
+
+    rating: (o.rating === 0 || o.rating) ? o.rating : "",
+    comment: (o.comment || "").trim(),
+
+    source: "cave"
+  };
+
+  const res = await apiPost(payload);
+  if (!res.ok) {
+    setStatus("Erreur");
+    alert(res.error || "Erreur API");
+    return;
+  }
+
+  // Mettre à jour localement sans recharger tout
+  const newQty = res.data && res.data.quantite !== undefined ? Number(res.data.quantite) : null;
+  if (newQty !== null) {
+    o.quantite = newQty;
+  }
+
+  const title = (o.nom || "Le vin").trim();
+  alert(action === "add" ? `"${title}" ajouté (+${qty}).` : `"${title}" sorti (–${qty}).`);
+
+  setStatus("Prêt");
+  render();
+}
+
+/* ---------- DATA ---------- */
+
+async function refresh(){
+  setStatus("Chargement…");
+
+  try {
+    // timeout pour éviter un "Chargement…" infini
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 12000);
+
+    const res = await fetch(API_URL + "?action=list", {
+      method: "GET",
+      cache: "no-store",
+      signal: ctrl.signal
+    });
+
+    clearTimeout(t);
+
+    const txt = await res.text();
+    let data;
+    try {
+      data = JSON.parse(txt);
+    } catch (e) {
+      setStatus("Erreur API (non-JSON)");
+      alert("API a renvoyé du texte non-JSON :\n\n" + txt.slice(0, 800));
+      return;
+    }
+
+    if (!data.ok) {
+      setStatus("Erreur API");
+      alert(data.error || "Erreur API");
+      return;
+    }
+
+    all = data.data || [];
+    setStatus("Prêt");
+    render();
+
+  } catch (e) {
+    setStatus("Erreur réseau");
+    alert("Erreur pendant refresh(): " + (e?.message || e));
+    console.error(e);
+  }
+}
+
+/* ---------- BIND ---------- */
+
+function bind(){
+  ["q","filterCouleur","filterEmplacement"].forEach(id => {
+    $(id)?.addEventListener("input", () => render());
+    $(id)?.addEventListener("change", () => render());
+  });
+
+  // tri
+  ["sortBy","sortOrder"].forEach(id => {
+    $(id)?.addEventListener("change", () => render());
+  });
+
+  $("btnRefresh")?.addEventListener("click", refresh);
+  $("btnClear")?.addEventListener("click", () => {
+    if ($("q")) $("q").value = "";
+    if ($("filterCouleur")) $("filterCouleur").value = "";
+    if ($("filterEmplacement")) $("filterEmplacement").value = "";
+    if ($("sortBy")) $("sortBy").value = "name";
+    if ($("sortOrder")) $("sortOrder").value = "asc";
+    render();
+  });
+}
+
+(function init(){
+  bind();
+  refresh();
+
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  }
+})();
