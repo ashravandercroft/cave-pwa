@@ -73,6 +73,20 @@ function getFormData() {
   };
 }
 
+function fillFormFromAny(o) {
+  if (!o) return;
+
+  // on remplit tout (ici on veut pouvoir éditer)
+  $("f_nom").value = o.nom || "";
+  $("f_domaine").value = o.domaine || "";
+  $("f_appellation").value = o.appellation || "";
+  $("f_millesime").value = o.millesime || "NV";
+  $("f_couleur").value = o.couleur || "";
+  $("f_format").value = o.format || "";
+  $("f_emplacement").value = o.emplacement || "";
+}
+
+
 /**
  * lookup(ean, opts)
  * opts.keepScreen = true => ne cache pas result/form au démarrage
@@ -168,10 +182,12 @@ function renderResult() {
     <div class="resultBlock">${detailsHtml}</div>
 
     <div class="actionsRow">
-      <button type="button" class="btn primary" id="btnAdd">+1</button>
-      <button type="button" class="btn danger" id="btnRemove">-1</button>
-      <button type="button" class="btn secondary" id="btnInfo">Infos</button>
-    </div>
+  <button type="button" class="btn primary" id="btnAdd">+1</button>
+  <button type="button" class="btn danger" id="btnRemove">-1</button>
+  <button type="button" class="btn secondary" id="btnEdit">Modifier la fiche</button>
+  <button type="button" class="btn secondary" id="btnInfo">Infos</button>
+</div>
+
 
     <div id="infoBox" class="infoLinks hidden">
       <a href="${infoLinks.vivino}" target="_blank" rel="noopener">Vivino</a>
@@ -185,6 +201,22 @@ function renderResult() {
   $("btnAdd").onclick = () => applyAction("add");
   $("btnRemove").onclick = () => applyAction("remove");
   $("btnInfo").onclick = () => $("infoBox").classList.toggle("hidden");
+
+  $("btnEdit").onclick = () => {
+  // si le vin existe dans la cave, on prend la première ligne (ou on peut demander le millésime)
+  const sourceObj = (last.dataInCave && last.dataInCave.length > 0)
+    ? last.dataInCave[0]
+    : last.product;
+
+  show("form");
+  fillFormFromAny(sourceObj || {});
+  
+  // on scroll vers le formulaire (iPhone)
+  setTimeout(() => {
+    $("form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, 120);
+};
+
 }
 
 function buildInfoLinks(ean, obj) {
