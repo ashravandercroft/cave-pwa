@@ -6,6 +6,9 @@ const $ = (id) => document.getElementById(id);
 window.__APP_LOADED__ = "OK";
 alert("APP.JS chargé V7");
 
+// ✅ AJOUT : old_key uniquement en mode édition
+let editingOldKey = "";
+
 let last = {
   ean: "",
   dataInCave: [],
@@ -96,6 +99,11 @@ async function lookup(ean, opts = {}) {
   if (!ean) { alert("Veuillez saisir ou scanner un code-barres."); return; }
 
   last.ean = ean;
+
+  // ✅ MODIF : dès qu’on scanne/recherche un vin, on sort du mode édition
+  // => ça évite de migrer accidentellement 2024 vers 2023
+  editingOldKey = "";
+
   setStatus("Recherche…");
 
   // si on ne veut pas "tout faire disparaître"
@@ -182,12 +190,11 @@ function renderResult() {
     <div class="resultBlock">${detailsHtml}</div>
 
     <div class="actionsRow">
-  <button type="button" class="btn primary" id="btnAdd">+1</button>
-  <button type="button" class="btn danger" id="btnRemove">-1</button>
-  <button type="button" class="btn secondary" id="btnEdit">Modifier la fiche</button>
-  <button type="button" class="btn secondary" id="btnInfo">Infos</button>
-</div>
-
+      <button type="button" class="btn primary" id="btnAdd">+1</button>
+      <button type="button" class="btn danger" id="btnRemove">-1</button>
+      <button type="button" class="btn secondary" id="btnEdit">Modifier la fiche</button>
+      <button type="button" class="btn secondary" id="btnInfo">Infos</button>
+    </div>
 
     <div id="infoBox" class="infoLinks hidden">
       <a href="${infoLinks.vivino}" target="_blank" rel="noopener">Vivino</a>
@@ -203,20 +210,24 @@ function renderResult() {
   $("btnInfo").onclick = () => $("infoBox").classList.toggle("hidden");
 
   $("btnEdit").onclick = () => {
-  // si le vin existe dans la cave, on prend la première ligne (ou on peut demander le millésime)
-  const sourceObj = (last.dataInCave && last.dataInCave.length > 0)
-    ? last.dataInCave[0]
-    : last.product;
+    // ✅ MODIF : activer le mode édition uniquement ici
+    // => old_key envoyé uniquement si vous cliquez sur "Modifier la fiche"
+    const sourceObj = (last.dataInCave && last.dataInCave.length > 0)
+      ? last.dataInCave[0]
+      : last.product;
 
-  show("form");
-  fillFormFromAny(sourceObj || {});
-  
-  // on scroll vers le formulaire (iPhone)
-  setTimeout(() => {
-    $("form")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, 120);
-};
+    // si on édite un vin existant en cave, on garde sa key pour migration éventuelle
+    editingOldKey = (last.dataInCave && last.dataInCave.length > 0)
+      ? String(last.dataInCave[0].key || "").trim()
+      : "";
 
+    show("form");
+    fillFormFromAny(sourceObj || {});
+
+    setTimeout(() => {
+      $("form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 120);
+  };
 }
 
 function buildInfoLinks(ean, obj) {
@@ -247,12 +258,11 @@ async function applyAction(action) {
   const ean = last.ean;
   if (!ean) return;
 
-  // Demander la quantité
   const txt = prompt(
     action === "add" ? "Combien de bouteilles ajouter ?" : "Combien de bouteilles sortir ?",
     "1"
   );
-  if (txt === null) return; // annulation
+  if (txt === null) return;
 
   let qty = parseInt(String(txt).trim(), 10);
   if (!Number.isFinite(qty) || qty <= 0) {
@@ -269,7 +279,6 @@ async function applyAction(action) {
   } else if (last.dataInCave.length === 1) {
     millesime = (last.dataInCave[0].millesime || "NV").toString();
   } else {
-    // pas en cave : on prend le formulaire si rempli
     const f = getFormData();
     millesime = (f.millesime || "NV").trim() || "NV";
   }
@@ -277,7 +286,7 @@ async function applyAction(action) {
   const base = getFormData();
   const payload = {
     action,
-    qty, // <--- IMPORTANT (Option A)
+    qty,
     ean,
     millesime,
     nom: base.nom,
@@ -299,7 +308,6 @@ async function applyAction(action) {
     return;
   }
 
-  // Confirmation utilisateur
   const name = (payload.nom || "").trim();
   if (action === "add") {
     alert((name ? `"${name}" ` : "Le vin ") + `a été ajouté à la cave (+${qty}).`);
@@ -307,7 +315,6 @@ async function applyAction(action) {
     alert((name ? `"${name}" ` : "Le vin ") + `a été sorti de la cave (–${qty}).`);
   }
 
-  // recharger l'état (sans "effacer" l'écran)
   await lookup(ean, { keepScreen: true });
 }
 
@@ -323,6 +330,10 @@ async function upsert() {
     action: "upsert",
     ean,
     millesime: f.millesime || "NV",
+
+    // ✅ old_key envoyé UNIQUEMENT si on a cliqué sur "Modifier la fiche"
+    old_key: editingOldKey,
+
     nom: f.nom,
     domaine: f.domaine,
     appellation: f.appellation,
@@ -345,7 +356,9 @@ async function upsert() {
   setStatus("Enregistré");
   alert("Fiche enregistrée.");
 
-  // recharger sans "effacer" et remonter vers les boutons +1/-1
+  // ✅ reset : après un upsert, on sort du mode édition
+  editingOldKey = "";
+
   await lookup(ean, { keepScreen: true });
 
   setTimeout(() => {
