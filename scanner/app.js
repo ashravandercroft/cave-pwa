@@ -4,9 +4,9 @@ const API_URL = "https://script.google.com/macros/s/AKfycbyxfNO9zWm3CT-GACd0oQE_
 const $ = (id) => document.getElementById(id);
 
 window.__APP_LOADED__ = "OK";
-alert("APP.JS chargé V7");
+alert("APP.JS chargé V8");
 
-// ✅ AJOUT : old_key uniquement en mode édition
+// ✅ old_key uniquement en mode édition (via bouton "Modifier la fiche")
 let editingOldKey = "";
 
 let last = {
@@ -79,7 +79,6 @@ function getFormData() {
 function fillFormFromAny(o) {
   if (!o) return;
 
-  // on remplit tout (ici on veut pouvoir éditer)
   $("f_nom").value = o.nom || "";
   $("f_domaine").value = o.domaine || "";
   $("f_appellation").value = o.appellation || "";
@@ -88,7 +87,6 @@ function fillFormFromAny(o) {
   $("f_format").value = o.format || "";
   $("f_emplacement").value = o.emplacement || "";
 }
-
 
 /**
  * lookup(ean, opts)
@@ -100,13 +98,11 @@ async function lookup(ean, opts = {}) {
 
   last.ean = ean;
 
-  // ✅ MODIF : dès qu’on scanne/recherche un vin, on sort du mode édition
-  // => ça évite de migrer accidentellement 2024 vers 2023
+  // ✅ IMPORTANT : à chaque nouveau scan/recherche, on sort du mode édition
   editingOldKey = "";
 
   setStatus("Recherche…");
 
-  // si on ne veut pas "tout faire disparaître"
   if (!opts.keepScreen) {
     hide("result");
     hide("form");
@@ -144,9 +140,19 @@ async function lookup(ean, opts = {}) {
   renderResult();
   setStatus("Prêt");
 
-  // si aucune donnée cave, on ouvre le formulaire pour compléter
-  if (last.dataInCave.length === 0) {
-    show("form");
+  // ✅ NOUVEAU COMPORTEMENT :
+  // - on affiche TOUJOURS le formulaire
+  // - si déjà en cave => on préremplit les infos (nom/domaine/etc)
+  // - MAIS on laisse le millésime vide pour pouvoir ajouter un nouveau millésime
+  show("form");
+
+  if (last.dataInCave.length > 0) {
+    const base = last.dataInCave[0];
+    fillFormFromAny(base);
+
+    // Millésime volontairement vide (choix utilisateur)
+    $("f_millesime").value = "";
+  } else {
     fillFormFromProduct(offProduct || { nom:"", domaine:"", appellation:"", millesime:"", couleur:"", format:"" });
   }
 }
@@ -209,20 +215,28 @@ function renderResult() {
   $("btnRemove").onclick = () => applyAction("remove");
   $("btnInfo").onclick = () => $("infoBox").classList.toggle("hidden");
 
+  // ✅ MODIF : demander quel millésime on veut éditer, si plusieurs
   $("btnEdit").onclick = () => {
-    // ✅ MODIF : activer le mode édition uniquement ici
-    // => old_key envoyé uniquement si vous cliquez sur "Modifier la fiche"
-    const sourceObj = (last.dataInCave && last.dataInCave.length > 0)
-      ? last.dataInCave[0]
-      : last.product;
+    if (!last.dataInCave || last.dataInCave.length === 0) {
+      show("form");
+      fillFormFromAny(last.product || {});
+      return;
+    }
 
-    // si on édite un vin existant en cave, on garde sa key pour migration éventuelle
-    editingOldKey = (last.dataInCave && last.dataInCave.length > 0)
-      ? String(last.dataInCave[0].key || "").trim()
-      : "";
+    let objToEdit = last.dataInCave[0];
+
+    if (last.dataInCave.length > 1) {
+      const choices = last.dataInCave.map(x => x.millesime || "NV");
+      const picked = prompt("Quel millésime voulez-vous modifier ? " + choices.join(", "), choices[0]);
+      const m = (picked || "").trim() || choices[0];
+      objToEdit = last.dataInCave.find(x => (x.millesime || "NV") === m) || last.dataInCave[0];
+    }
+
+    // ✅ ici on active la migration (uniquement pour édition)
+    editingOldKey = String(objToEdit.key || "").trim();
 
     show("form");
-    fillFormFromAny(sourceObj || {});
+    fillFormFromAny(objToEdit);
 
     setTimeout(() => {
       $("form")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -251,8 +265,9 @@ function escapeHtml(s) {
 }
 
 /**
- * OPTION A : choisir la quantité à ajouter/retirer via prompt
- * => envoie payload.qty à l'API
+ * ✅ OPTION A + FIX "VIN" :
+ * - le millésime prend priorité sur le formulaire
+ * - si le formulaire est vide, on prend les infos existantes en cave
  */
 async function applyAction(action) {
   const ean = last.ean;
@@ -270,31 +285,47 @@ async function applyAction(action) {
     return;
   }
 
-  // si plusieurs millésimes en cave, demander lequel
-  let millesime = "";
-  if (last.dataInCave.length > 1) {
-    const choices = last.dataInCave.map(x => x.millesime || "NV");
-    const picked = prompt("Quel millésime ? " + choices.join(", "), choices[0]);
-    millesime = (picked || "").trim() || "NV";
-  } else if (last.dataInCave.length === 1) {
-    millesime = (last.dataInCave[0].millesime || "NV").toString();
-  } else {
-    const f = getFormData();
-    millesime = (f.millesime || "NV").trim() || "NV";
+  // Millésime : priorité au formulaire
+  let millesime = (getFormData().millesime || "").trim();
+
+  // si pas indiqué et plusieurs millésimes => demander
+  if (!millesime) {
+    if (last.dataInCave.length > 1) {
+      const choices = last.dataInCave.map(x => x.millesime || "NV");
+      const picked = prompt("Quel millésime ? " + choices.join(", "), choices[0]);
+      millesime = (picked || "").trim();
+    } else if (last.dataInCave.length === 1) {
+      millesime = (last.dataInCave[0].millesime || "NV").toString();
+    }
+  }
+  if (!millesime) millesime = "NV";
+
+  // ✅ IMPORTANT : toujours envoyer un nom/domaine/etc
+  let base = getFormData();
+  const hasAnyInfo = base.nom || base.domaine || base.couleur || base.format;
+
+  if (!hasAnyInfo && last.dataInCave.length > 0) {
+    base = {
+      nom: last.dataInCave[0].nom || "",
+      domaine: last.dataInCave[0].domaine || "",
+      appellation: last.dataInCave[0].appellation || "",
+      couleur: last.dataInCave[0].couleur || "",
+      format: last.dataInCave[0].format || "",
+      emplacement: last.dataInCave[0].emplacement || ""
+    };
   }
 
-  const base = getFormData();
   const payload = {
     action,
     qty,
     ean,
     millesime,
-    nom: base.nom,
-    domaine: base.domaine,
-    appellation: base.appellation,
-    couleur: base.couleur,
-    format: base.format,
-    emplacement: base.emplacement,
+    nom: base.nom || "",
+    domaine: base.domaine || "",
+    appellation: base.appellation || "",
+    couleur: base.couleur || "",
+    format: base.format || "",
+    emplacement: base.emplacement || "",
     image_url: last.product ? last.product.image_url : "",
     source: "scanner"
   };
@@ -308,12 +339,11 @@ async function applyAction(action) {
     return;
   }
 
-  const name = (payload.nom || "").trim();
-  if (action === "add") {
-    alert((name ? `"${name}" ` : "Le vin ") + `a été ajouté à la cave (+${qty}).`);
-  } else if (action === "remove") {
-    alert((name ? `"${name}" ` : "Le vin ") + `a été sorti de la cave (–${qty}).`);
-  }
+  const name = (payload.nom || "").trim() || "Le vin";
+  alert(action === "add"
+    ? `"${name}" a été ajouté à la cave (+${qty}).`
+    : `"${name}" a été sorti de la cave (–${qty}).`
+  );
 
   await lookup(ean, { keepScreen: true });
 }
@@ -331,7 +361,7 @@ async function upsert() {
     ean,
     millesime: f.millesime || "NV",
 
-    // ✅ old_key envoyé UNIQUEMENT si on a cliqué sur "Modifier la fiche"
+    // ✅ old_key envoyé uniquement si vous avez cliqué sur "Modifier la fiche"
     old_key: editingOldKey,
 
     nom: f.nom,
@@ -356,7 +386,7 @@ async function upsert() {
   setStatus("Enregistré");
   alert("Fiche enregistrée.");
 
-  // ✅ reset : après un upsert, on sort du mode édition
+  // ✅ reset : on sort du mode édition après enregistrement
   editingOldKey = "";
 
   await lookup(ean, { keepScreen: true });
