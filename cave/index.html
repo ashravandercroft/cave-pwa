@@ -5,38 +5,33 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>La cave de Lydie</title>
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css?v=9" />
+  <link rel="stylesheet" href="style.css?v=10" />
 </head>
 
 <body>
   <main class="container">
 
     <div class="topBanner">
-  <div class="topBannerInner">
-    <div class="topText">
-      <h1>La cave de Lydie</h1>
-      <div class="subtitle">Retrouvez vos vins, ajustez vos stocks et filtrez en un clin d’œil.</div>
+      <div class="topBannerInner">
+        <div class="topText">
+          <h1>La cave de Lydie</h1>
+          <div class="subtitle">Retrouvez vos vins, ajustez vos stocks et filtrez en un clin d’œil.</div>
+        </div>
+
+        <div class="topRight">
+          <div class="badge badgeOnBanner" id="badgeCount">Chargement…</div>
+
+          <!-- Logo bouteille minimaliste (SVG) -->
+          <div class="bottleIcon" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+              <path d="M26 6h12v6H26V6Z" stroke="white" stroke-width="3" stroke-linejoin="round"/>
+              <path d="M28 12h8v8c0 2 1 4 2 5l4 4c2 2 3 5 3 8v16c0 8-6 13-13 13S19 61 19 53V37c0-3 1-6 3-8l4-4c1-1 2-3 2-5v-8Z"
+                stroke="white" stroke-width="3" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </div>
+      </div>
     </div>
-
-    <div class="topRight">
-      <div class="badge badgeOnBanner" id="badgeCount">Chargement…</div>
-
-      <!-- Logo bouteille minimaliste (SVG) -->
-     <div class="bottleIcon" aria-hidden="true">
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
-    <path d="M26 6h12v6H26V6Z" stroke="white" stroke-width="3" stroke-linejoin="round"/>
-    <path d="M28 12h8v8c0 2 1 4 2 5l4 4c2 2 3 5 3 8v16c0 8-6 13-13 13S19 61 19 53V37c0-3 1-6 3-8l4-4c1-1 2-3 2-5v-8Z"
-      stroke="white" stroke-width="3" stroke-linejoin="round"/>
-  </svg>
-</div>
-
-
-
-
-    </div>
-  </div>
-</div>
-
 
     <div class="card">
       <div class="sectionTitle">Recherche, filtres & tri</div>
@@ -80,11 +75,16 @@
       </div>
     </div>
 
+    <!-- ✅ BOUTON vers /scanner/ -->
+    <a href="../scanner/" class="scanCta">
+      <div class="scanCtaInner">
+        <div>
+          <div class="scanCtaTitle">Scanner une bouteille</div>
+          <div class="scanCtaSub">Ajouter, sortir ou retrouver un vin en quelques secondes.</div>
+        </div>
+        <div class="scanCtaArrow">→</div>
+      </div>
+    </a>
+
     <div id="list" class="list"></div>
-    <div id="empty" class="empty hidden">Aucune bouteille trouvée.</div>
-
-  </main>
-
-  <script src="app.js?v=4"></script>
-</body>
-</html>
+    <div id="empty" class="empty hidden">
