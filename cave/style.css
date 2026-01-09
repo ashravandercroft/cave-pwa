@@ -263,8 +263,6 @@ body{
   box-shadow: none;
 }
 
-
-
 /* Logo bouteille */
 .bottleIcon{
   width: 44px;
@@ -280,4 +278,26 @@ body{
 .bottleIcon svg{
   width: 28px;
   height: 28px;
+}
+
+/* =========================
+   Edition inline (Modifier)
+   ========================= */
+
+.editBox{
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(17,24,39,.10);
+}
+
+.editGrid{
+  display:grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+@media(min-width:720px){
+  .editGrid{
+    grid-template-columns: 1fr 1fr;
+  }
 }
