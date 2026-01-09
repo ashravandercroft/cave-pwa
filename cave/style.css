@@ -350,3 +350,67 @@ body{
   font-size: 20px;
   color: #0a84ff;
 }
+
+/* =========================
+   NOUVEAU LAYOUT CAVE (vin + commentaire + boutons)
+   ========================= */
+
+.wineHeaderBold{
+  font-weight: 900;
+  font-size: 16px;
+  letter-spacing: -0.2px;
+}
+
+.wineName{
+  margin-top: 4px;
+  font-size: 14px;
+  color: rgba(17,24,39,.92);
+}
+
+.wineLine{
+  margin-top: 6px;
+  font-size: 13px;
+  color: rgba(17,24,39,.72);
+}
+
+.wineLine strong{
+  color: rgba(17,24,39,.92);
+  font-weight: 900;
+}
+
+.wineSpacer{
+  height: 10px;
+}
+
+/* Mini-encadré commentaire : même style que .item, mais plus compact */
+.commentCard{
+  background: rgba(255,255,255,.9);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 10px 10px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.04);
+}
+
+.commentCard .small{
+  color: rgba(17,24,39,.72);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.commentEmpty{
+  color: var(--muted2);
+}
+
+/* Ligne de boutons : gauche -> droite + groupe à droite */
+.wineActionsRow{
+  display:flex;
+  align-items:center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.wineActionsRight{
+  margin-left: auto;
+  display:flex;
+  gap: 8px;
+}
