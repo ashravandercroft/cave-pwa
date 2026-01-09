@@ -4,6 +4,9 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbyxfNO9zWm3CT-GACd0oQE_ambHcJ33VHrQOxVxQIIEEpuv53G_A08cWqHXOsYcofaD/exec";
 const $ = (id) => document.getElementById(id);
 
+alert("CAVE APP.JS V-NOUVEAU-LAYOUT");
+
+
 let all = [];     // toutes les lignes de la cave
 let view = [];    // lignes filtrées
 
