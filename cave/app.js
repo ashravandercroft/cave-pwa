@@ -311,25 +311,24 @@ async function saveEdit(o){
   setStatus("Enregistrement…");
 
   const payload = {
-  action: "upsert",
-  ean: o.ean,
-  millesime,
+    action: "upsert",
+    ean: o.ean,
+    millesime,
 
-  // IMPORTANT : permet de savoir si la clé change (ean|millesime)
-  old_key: o.key || "",
-  old_millesime: o.millesime || "NV",
+    // IMPORTANT : permet la migration automatique si la clé change
+    old_key: o.key || "",
+    old_millesime: o.millesime || "NV",
 
-  nom,
-  domaine,
-  appellation,
-  couleur,
-  format,
-  emplacement,
-  image_url: o.image_url || "",
-  notes: o.notes || "",
-  source: "cave"
-};
-
+    nom,
+    domaine,
+    appellation,
+    couleur,
+    format,
+    emplacement,
+    image_url: o.image_url || "",
+    notes: o.notes || "",
+    source: "cave"
+  };
 
   const res = await apiPost(payload);
   if (!res.ok) {
@@ -340,11 +339,24 @@ async function saveEdit(o){
 
   setStatus("Enregistré");
 
-  // Recharger depuis l'API (fiable, surtout si millésime a changé)
+  // Recharger depuis l'API (fiable)
   await refresh();
 
-  alert("Fiche mise à jour.");
+  // Message explicite selon migration ou non
+  const migrated = !!(res.data && res.data.migrated);
+  const movedQty = res.data && res.data.moved_qty !== undefined ? Number(res.data.moved_qty) : 0;
+
+  if (migrated) {
+    alert(
+      "Millésime modifié.\n" +
+      "Stock déplacé : " + movedQty + " bouteille(s).\n" +
+      "Ancienne fiche supprimée."
+    );
+  } else {
+    alert("Fiche mise à jour.");
+  }
 }
+
 
 /* ---------- ACTIONS +/- ---------- */
 
