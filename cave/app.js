@@ -32,6 +32,18 @@ function escapeHtml(s) {
     .replaceAll("'", "&#039;");
 }
 
+/**
+ * Pour les id HTML : votre key contient "|" (ean|millesime)
+ * => on la "sanitize" pour pouvoir l'utiliser dans id=""
+ */
+function safeKey(key){
+  return String(key || "").replaceAll("|", "__").replaceAll(" ", "_");
+}
+
+function getByKey(key){
+  return all.find(x => (x.key || "") === key);
+}
+
 /* ---------- AFFICHAGE ---------- */
 
 function fmtWineTitle(o){
@@ -158,6 +170,9 @@ function render(){
     const div = document.createElement("div");
     div.className = "item";
 
+    const k = o.key || "";
+    const sk = safeKey(k);
+
     div.innerHTML = `
       <div class="itemTop">
         <div>
@@ -170,8 +185,58 @@ function render(){
       <div class="itemBottom">
         <div class="small">EAN : ${escapeHtml(o.ean || "")}</div>
         <div class="actions">
-          <button type="button" class="btn danger" data-act="remove" data-key="${escapeHtml(o.key)}">–</button>
-          <button type="button" class="btn primary" data-act="add" data-key="${escapeHtml(o.key)}">+</button>
+          <button type="button" class="btn danger" data-act="remove" data-key="${escapeHtml(k)}">–</button>
+          <button type="button" class="btn primary" data-act="add" data-key="${escapeHtml(k)}">+</button>
+          <button type="button" class="btn secondary" data-act="edit" data-key="${escapeHtml(k)}">Modifier</button>
+        </div>
+      </div>
+
+      <!-- Edition inline -->
+      <div class="editBox hidden" id="edit_${sk}">
+        <div class="editGrid">
+          <div>
+            <div class="small" style="margin-bottom:6px;">Nom</div>
+            <input class="input" id="en_${sk}" value="${escapeHtml(o.nom || "")}" placeholder="Nom" />
+          </div>
+
+          <div>
+            <div class="small" style="margin-bottom:6px;">Domaine</div>
+            <input class="input" id="ed_${sk}" value="${escapeHtml(o.domaine || "")}" placeholder="Domaine" />
+          </div>
+
+          <div>
+            <div class="small" style="margin-bottom:6px;">Appellation</div>
+            <input class="input" id="ea_${sk}" value="${escapeHtml(o.appellation || "")}" placeholder="Appellation" />
+          </div>
+
+          <div>
+            <div class="small" style="margin-bottom:6px;">Millésime</div>
+            <input class="input" id="em_${sk}" value="${escapeHtml(o.millesime || "NV")}" placeholder="NV / 2018" />
+          </div>
+
+          <div>
+            <div class="small" style="margin-bottom:6px;">Couleur</div>
+            <input class="input" id="ec_${sk}" value="${escapeHtml(o.couleur || "")}" placeholder="rouge / blanc / rosé" />
+          </div>
+
+          <div>
+            <div class="small" style="margin-bottom:6px;">Format</div>
+            <input class="input" id="ef_${sk}" value="${escapeHtml(o.format || "")}" placeholder="75cl" />
+          </div>
+
+          <div style="grid-column: 1 / -1;">
+            <div class="small" style="margin-bottom:6px;">Emplacement</div>
+            <input class="input" id="ee_${sk}" value="${escapeHtml(o.emplacement || "")}" placeholder="Cave / Étage 2" />
+          </div>
+        </div>
+
+        <div class="actions" style="margin-top:10px;">
+          <button type="button" class="btn primary" data-act="save" data-key="${escapeHtml(k)}">Enregistrer</button>
+          <button type="button" class="btn secondary" data-act="cancel" data-key="${escapeHtml(k)}">Annuler</button>
+        </div>
+
+        <div class="small" style="margin-top:10px;">
+          Astuce : changer le millésime crée une nouvelle fiche (EAN + millésime).
         </div>
       </div>
     `;
@@ -179,17 +244,100 @@ function render(){
     list.appendChild(div);
   }
 
-  // Bind actions
+  // Bind actions (tous les boutons)
   list.querySelectorAll("button[data-act]").forEach(btn => {
     btn.addEventListener("click", () => {
       const act = btn.getAttribute("data-act");
       const key = btn.getAttribute("data-key");
-      const obj = all.find(x => (x.key || "") === key);
+      const obj = getByKey(key);
       if (!obj) return;
 
+      if (act === "edit") {
+        toggleEdit(key);
+        return;
+      }
+      if (act === "cancel") {
+        closeEdit(key);
+        return;
+      }
+      if (act === "save") {
+        saveEdit(obj);
+        return;
+      }
+
+      // add/remove
       applyAction(act, obj);
     });
   });
+}
+
+/* ---------- EDITION ---------- */
+
+function toggleEdit(key){
+  const sk = safeKey(key);
+  const box = document.getElementById("edit_" + sk);
+  if (!box) return;
+
+  // Fermer les autres boîtes ouvertes (plus propre)
+  document.querySelectorAll(".editBox").forEach(el => {
+    if (el !== box) el.classList.add("hidden");
+  });
+
+  box.classList.toggle("hidden");
+}
+
+function closeEdit(key){
+  const sk = safeKey(key);
+  const box = document.getElementById("edit_" + sk);
+  if (box) box.classList.add("hidden");
+}
+
+async function saveEdit(o){
+  const sk = safeKey(o.key);
+
+  const nom = document.getElementById("en_" + sk)?.value?.trim() || "";
+  const domaine = document.getElementById("ed_" + sk)?.value?.trim() || "";
+  const appellation = document.getElementById("ea_" + sk)?.value?.trim() || "";
+  const millesime = document.getElementById("em_" + sk)?.value?.trim() || "NV";
+  const couleur = document.getElementById("ec_" + sk)?.value?.trim() || "";
+  const format = document.getElementById("ef_" + sk)?.value?.trim() || "";
+  const emplacement = document.getElementById("ee_" + sk)?.value?.trim() || "";
+
+  if (!nom) {
+    alert("Le nom est obligatoire.");
+    return;
+  }
+
+  setStatus("Enregistrement…");
+
+  const payload = {
+    action: "upsert",
+    ean: o.ean,
+    millesime,
+    nom,
+    domaine,
+    appellation,
+    couleur,
+    format,
+    emplacement,
+    image_url: o.image_url || "",
+    notes: o.notes || "",
+    source: "cave"
+  };
+
+  const res = await apiPost(payload);
+  if (!res.ok) {
+    setStatus("Erreur");
+    alert(res.error || "Erreur API");
+    return;
+  }
+
+  setStatus("Enregistré");
+
+  // Recharger depuis l'API (fiable, surtout si millésime a changé)
+  await refresh();
+
+  alert("Fiche mise à jour.");
 }
 
 /* ---------- ACTIONS +/- ---------- */
