@@ -1,3 +1,5 @@
+// /cave/app.js (modifié)
+
 // Même API que le scanner
 const API_URL = "https://script.google.com/macros/s/AKfycbyxfNO9zWm3CT-GACd0oQE_ambHcJ33VHrQOxVxQIIEEpuv53G_A08cWqHXOsYcofaD/exec";
 const $ = (id) => document.getElementById(id);
@@ -44,6 +46,16 @@ function getByKey(key){
   return all.find(x => (x.key || "") === key);
 }
 
+/* ---------- NOTE /10 ---------- */
+
+function normalizeRatingHalf(v) {
+  if (v === "" || v === null || v === undefined) return "";
+  const n = Number(String(v).replace(",", "."));
+  if (Number.isNaN(n)) return "";
+  const clamped = Math.max(0, Math.min(10, n));
+  return Math.round(clamped * 2) / 2; // pas 0,5
+}
+
 /* ---------- AFFICHAGE ---------- */
 
 function fmtWineTitle(o){
@@ -70,7 +82,7 @@ function matches(o){
   const e = normalize($("filterEmplacement")?.value);
 
   const blob = normalize(
-    [o.nom, o.domaine, o.ean, o.millesime, o.appellation, o.couleur, o.format, o.emplacement].join(" ")
+    [o.nom, o.domaine, o.ean, o.millesime, o.appellation, o.couleur, o.format, o.emplacement, o.comment, o.rating].join(" ")
   );
 
   if (q && !blob.includes(q)) return false;
@@ -173,13 +185,23 @@ function render(){
     const k = o.key || "";
     const sk = safeKey(k);
 
+    const ratingText = (o.rating === 0 || o.rating) ? `${o.rating}/10` : "Note —";
+    const commentText = (o.comment || "").trim();
+
     div.innerHTML = `
       <div class="itemTop">
         <div>
           <div class="itemTitle">${escapeHtml(fmtWineTitle(o))}</div>
           <div class="itemMeta">${escapeHtml(fmtMeta(o))}</div>
         </div>
-        <div class="qtyPill">${escapeHtml(String(o.quantite || 0))}</div>
+
+        <div style="display:flex; gap:8px; align-items:center;">
+          <div class="qtyPill">${escapeHtml(String(o.quantite || 0))}</div>
+          <!-- Note au style "bouton" (comme + / - / Modifier) -->
+          <div class="btn secondary" style="padding:6px 10px; cursor:default; user-select:none;">
+            ${escapeHtml(ratingText)}
+          </div>
+        </div>
       </div>
 
       <div class="itemBottom">
@@ -191,7 +213,31 @@ function render(){
         </div>
       </div>
 
-      <!-- Edition inline -->
+      <!-- Commentaire -->
+      <div style="margin-top:10px;">
+        <div class="small" id="comment_text_${sk}" style="${commentText ? "" : "display:none;"} white-space:pre-wrap;">
+          ${escapeHtml(commentText)}
+        </div>
+
+        <div class="actions" style="margin-top:8px;">
+          <button type="button" class="btn secondary" data-act="comment" data-key="${escapeHtml(k)}">
+            ${commentText ? "Modifier le commentaire" : "Ajouter un commentaire"}
+          </button>
+        </div>
+
+        <!-- Edition commentaire inline -->
+        <div class="editBox hidden commentBox" id="comment_${sk}" style="margin-top:10px;">
+          <div class="small" style="margin-bottom:6px;">Commentaire</div>
+          <textarea class="input" id="ct_${sk}" rows="3" maxlength="1000" placeholder="Votre commentaire...">${escapeHtml(commentText)}</textarea>
+
+          <div class="actions" style="margin-top:10px;">
+            <button type="button" class="btn primary" data-act="saveComment" data-key="${escapeHtml(k)}">Enregistrer</button>
+            <button type="button" class="btn secondary" data-act="cancelComment" data-key="${escapeHtml(k)}">Annuler</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Edition inline (fiche) -->
       <div class="editBox hidden" id="edit_${sk}">
         <div class="editGrid">
           <div>
@@ -224,6 +270,14 @@ function render(){
             <input class="input" id="ef_${sk}" value="${escapeHtml(o.format || "")}" placeholder="75cl" />
           </div>
 
+          <!-- NOTE /10 (pas 0,5) -->
+          <div>
+            <div class="small" style="margin-bottom:6px;">Note /10</div>
+            <input class="input" id="er_${sk}" type="number" min="0" max="10" step="0.5" inputmode="decimal"
+              value="${escapeHtml((o.rating === 0 || o.rating) ? String(o.rating) : "")}"
+              placeholder="ex: 7.5" />
+          </div>
+
           <div style="grid-column: 1 / -1;">
             <div class="small" style="margin-bottom:6px;">Emplacement</div>
             <input class="input" id="ee_${sk}" value="${escapeHtml(o.emplacement || "")}" placeholder="Cave / Étage 2" />
@@ -252,18 +306,13 @@ function render(){
       const obj = getByKey(key);
       if (!obj) return;
 
-      if (act === "edit") {
-        toggleEdit(key);
-        return;
-      }
-      if (act === "cancel") {
-        closeEdit(key);
-        return;
-      }
-      if (act === "save") {
-        saveEdit(obj);
-        return;
-      }
+      if (act === "edit") { toggleEdit(key); return; }
+      if (act === "cancel") { closeEdit(key); return; }
+      if (act === "save") { saveEdit(obj); return; }
+
+      if (act === "comment") { toggleComment(key); return; }
+      if (act === "cancelComment") { closeComment(key); return; }
+      if (act === "saveComment") { saveComment(obj); return; }
 
       // add/remove
       applyAction(act, obj);
@@ -280,7 +329,8 @@ function toggleEdit(key){
 
   // Fermer les autres boîtes ouvertes (plus propre)
   document.querySelectorAll(".editBox").forEach(el => {
-    if (el !== box) el.classList.add("hidden");
+    // ne pas forcer la fermeture du commentaire associé si l’utilisateur l’édite
+    if (el !== box && !el.classList.contains("commentBox")) el.classList.add("hidden");
   });
 
   box.classList.toggle("hidden");
@@ -302,6 +352,7 @@ async function saveEdit(o){
   const couleur = document.getElementById("ec_" + sk)?.value?.trim() || "";
   const format = document.getElementById("ef_" + sk)?.value?.trim() || "";
   const emplacement = document.getElementById("ee_" + sk)?.value?.trim() || "";
+  const rating = normalizeRatingHalf(document.getElementById("er_" + sk)?.value ?? "");
 
   if (!nom) {
     alert("Le nom est obligatoire.");
@@ -327,6 +378,10 @@ async function saveEdit(o){
     emplacement,
     image_url: o.image_url || "",
     notes: o.notes || "",
+
+    rating,
+    comment: (o.comment || "").trim(),
+
     source: "cave"
   };
 
@@ -357,6 +412,67 @@ async function saveEdit(o){
   }
 }
 
+/* ---------- COMMENTAIRE ---------- */
+
+function toggleComment(key){
+  const sk = safeKey(key);
+  const box = document.getElementById("comment_" + sk);
+  if (!box) return;
+
+  // Fermer les autres boîtes commentaire ouvertes
+  document.querySelectorAll(".commentBox").forEach(el => {
+    if (el !== box) el.classList.add("hidden");
+  });
+
+  box.classList.toggle("hidden");
+}
+
+function closeComment(key){
+  const sk = safeKey(key);
+  const box = document.getElementById("comment_" + sk);
+  if (box) box.classList.add("hidden");
+}
+
+async function saveComment(o){
+  const sk = safeKey(o.key);
+  const comment = document.getElementById("ct_" + sk)?.value?.trim() || "";
+
+  setStatus("Enregistrement…");
+
+  // On renvoie aussi les champs existants pour éviter toute perte selon la logique Apps Script
+  const payload = {
+    action: "upsert",
+    ean: o.ean,
+    millesime: o.millesime || "NV",
+
+    old_key: o.key || "",
+    old_millesime: o.millesime || "NV",
+
+    nom: o.nom || "",
+    domaine: o.domaine || "",
+    appellation: o.appellation || "",
+    couleur: o.couleur || "",
+    format: o.format || "",
+    emplacement: o.emplacement || "",
+    image_url: o.image_url || "",
+    notes: o.notes || "",
+
+    rating: (o.rating === 0 || o.rating) ? o.rating : "",
+    comment,
+
+    source: "cave"
+  };
+
+  const res = await apiPost(payload);
+  if (!res.ok) {
+    setStatus("Erreur");
+    alert(res.error || "Erreur API");
+    return;
+  }
+
+  setStatus("Enregistré");
+  await refresh();
+}
 
 /* ---------- ACTIONS +/- ---------- */
 
@@ -388,6 +504,10 @@ async function applyAction(action, o){
     emplacement: o.emplacement || "",
     image_url: o.image_url || "",
     notes: o.notes || "",
+
+    rating: (o.rating === 0 || o.rating) ? o.rating : "",
+    comment: (o.comment || "").trim(),
+
     source: "cave"
   };
 
