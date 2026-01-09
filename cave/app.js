@@ -311,19 +311,25 @@ async function saveEdit(o){
   setStatus("Enregistrement…");
 
   const payload = {
-    action: "upsert",
-    ean: o.ean,
-    millesime,
-    nom,
-    domaine,
-    appellation,
-    couleur,
-    format,
-    emplacement,
-    image_url: o.image_url || "",
-    notes: o.notes || "",
-    source: "cave"
-  };
+  action: "upsert",
+  ean: o.ean,
+  millesime,
+
+  // IMPORTANT : permet de savoir si la clé change (ean|millesime)
+  old_key: o.key || "",
+  old_millesime: o.millesime || "NV",
+
+  nom,
+  domaine,
+  appellation,
+  couleur,
+  format,
+  emplacement,
+  image_url: o.image_url || "",
+  notes: o.notes || "",
+  source: "cave"
+};
+
 
   const res = await apiPost(payload);
   if (!res.ok) {
