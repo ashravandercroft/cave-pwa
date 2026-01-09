@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Scanner cave</title>
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css?v=5" />
+  <link rel="stylesheet" href="style.css?v=6" />
 </head>
 
 <body>
@@ -34,6 +34,17 @@
         <div style="color: rgba(255,255,255,0.55); font-size: 12px;">iPhone + Quagga</div>
       </div>
     </div>
+
+    <!-- ✅ BOUTON vers /cave/ -->
+    <a href="../cave/" class="caveCta">
+      <div class="caveCtaInner">
+        <div>
+          <div class="caveCtaTitle">Accéder à ma cave</div>
+          <div class="caveCtaSub">Voir mes bouteilles, modifier les fiches et ajuster les stocks.</div>
+        </div>
+        <div class="caveCtaArrow">→</div>
+      </div>
+    </a>
 
     <div id="result" class="card hidden"></div>
 
@@ -93,7 +104,6 @@
         <div class="cameraHeader">
           <div>Scanner le code-barres</div>
           <button id="btnStop" type="button" class="btn danger small">Stop</button>
-
         </div>
 
         <div id="scannerViewport" class="viewport"></div>
