@@ -301,3 +301,52 @@ body{
     grid-template-columns: 1fr 1fr;
   }
 }
+
+
+/* =========================
+   CTA vers Scanner
+   ========================= */
+
+.scanCta{
+  display:block;
+  margin-top: 12px;
+  text-decoration:none;
+  color: inherit;
+}
+
+.scanCtaInner{
+  background: rgba(10,132,255,.12);
+  border: 1px solid rgba(10,132,255,.25);
+  border-radius: 18px;
+  padding: 14px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.04);
+  display:flex;
+  justify-content: space-between;
+  align-items:center;
+  gap: 12px;
+  transition: transform .05s ease;
+}
+
+.scanCtaInner:active{
+  transform: scale(.99);
+}
+
+.scanCtaTitle{
+  font-weight: 900;
+  font-size: 16px;
+  letter-spacing: -0.2px;
+  color: #0a84ff;
+}
+
+.scanCtaSub{
+  margin-top: 4px;
+  font-size: 13px;
+  color: rgba(17,24,39,.70);
+  line-height: 1.35;
+}
+
+.scanCtaArrow{
+  font-weight: 900;
+  font-size: 20px;
+  color: #0a84ff;
+}
