@@ -2,8 +2,7 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbyxfNO9zWm3CT-GACd0oQE_ambHcJ33VHrQOxVxQIIEEpuv53G_A08cWqHXOsYcofaD/exec";
 const $ = (id) => document.getElementById(id);
 
-window.__APP_LOADED__ = "OK";
-alert("APP.JS chargé V14");
+
 
 let editingOldKey = "";
 
