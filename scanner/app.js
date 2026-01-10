@@ -1,15 +1,9 @@
 // /scanner/app.js
-// Objectif :
-// - Si déjà en cave : afficher des encadrés (Domaine - Nom) puis Millésime à la ligne en dessous + X bouteilles, et + / - à droite
-// - Bouton "Nouveau millésime en cave" => ouvre le formulaire prérempli + bouton "Ajouter" centré (demande qty puis action=add)
-// - Si pas en cave : bouton "Nouveau vin en cave" => ouvre formulaire prérempli + bouton "Ajouter" centré
-// - Suppression du bouton "Modifier la fiche"
-
 const API_URL = "https://script.google.com/macros/s/AKfycbyxfNO9zWm3CT-GACd0oQE_ambHcJ33VHrQOxVxQIIEEpuv53G_A08cWqHXOsYcofaD/exec";
 const $ = (id) => document.getElementById(id);
 
 window.__APP_LOADED__ = "OK";
-alert("APP.JS chargé V11");
+alert("APP.JS chargé V12");
 
 let editingOldKey = ""; // conservé (au cas où), mais plus utilisé via UI
 
@@ -37,7 +31,7 @@ async function apiGet(url) {
 async function apiPost(payload) {
   const res = await fetch(API_URL, {
     method: "POST",
-    body: JSON.stringify(payload) // pas de headers !
+    body: JSON.stringify(payload)
   });
   return res.json();
 }
@@ -56,10 +50,6 @@ function escapeHtml(s) {
     .replaceAll("'", "&#039;");
 }
 
-/**
- * IMPORTANT : ne remplir les champs que s'ils sont vides
- * => évite d'écraser le millésime que vous avez tapé
- */
 function fillFormFromProduct(p) {
   const setIfEmpty = (id, value) => {
     const el = $(id);
@@ -102,10 +92,6 @@ function fillFormFromAny(o) {
   if ($("f_emplacement")) $("f_emplacement").value = o.emplacement || "";
 }
 
-/* ===========================
-   Mode bouton formulaire : Ajouter (centré) / Enregistrer (normal)
-   =========================== */
-
 function setUpsertButtonMode(mode) {
   const btn = $("btnUpsert");
   if (!btn) return;
@@ -121,17 +107,12 @@ function setUpsertButtonMode(mode) {
   }
 }
 
-/**
- * lookup(ean, opts)
- * opts.keepScreen = true => ne cache pas result/form au démarrage
- */
 async function lookup(ean, opts = {}) {
   ean = normalizeEan(ean);
   if (!ean) { alert("Veuillez saisir ou scanner un code-barres."); return; }
 
   last.ean = ean;
 
-  // reset mode
   editingOldKey = "";
   setUpsertButtonMode("save");
 
@@ -142,7 +123,6 @@ async function lookup(ean, opts = {}) {
     hide("form");
   }
 
-  // 1) chercher dans la cave
   const found = await apiGet(API_URL + "?action=find&ean=" + encodeURIComponent(ean));
   if (!found.ok) {
     setStatus("Erreur API");
@@ -151,7 +131,6 @@ async function lookup(ean, opts = {}) {
   }
   last.dataInCave = found.data || [];
 
-  // 2) si pas trouvé, essayer Open Food Facts (préremplissage)
   let offProduct = null;
   try {
     const off = await fetch("https://world.openfoodfacts.org/api/v0/product/" + ean + ".json");
@@ -174,16 +153,8 @@ async function lookup(ean, opts = {}) {
   renderResult();
   setStatus("Prêt");
 
-  // Par défaut on n’ouvre PAS le formulaire
   hide("form");
 }
-
-/* ===========================
-   UI : Encadrés des millésimes en cave
-   - Ligne 1 : Domaine - Nom
-   - Ligne 2 : Millésime
-   - Ligne 3 : X bouteille(s)
-   =========================== */
 
 function renderCaveCards(cave) {
   const rows = (cave || []).map((x) => {
@@ -261,10 +232,6 @@ async function applyActionDirect(action, obj) {
   await lookup(last.ean, { keepScreen: true });
 }
 
-/* ===========================
-   Rendu du résultat (sans "2023 : 2")
-   =========================== */
-
 function renderResult() {
   const ean = last.ean;
   const cave = last.dataInCave || [];
@@ -335,9 +302,15 @@ function renderResult() {
 
   show("result");
 
+  // ✅ MODIF ICI : on force un espace sous l’encadré "Résultat"
+  // (ça décollera l’encadré /cave si celui-ci est juste après dans le DOM)
+  try {
+    const resEl = $("result");
+    if (resEl) resEl.style.marginBottom = "14px";
+  } catch (e) {}
+
   $("btnInfo").onclick = () => $("infoBox").classList.toggle("hidden");
 
-  // + / - sur les cartes (si en cave)
   $("result").querySelectorAll("button[data-act='rowAdd']").forEach(btn => {
     btn.addEventListener("click", () => {
       const key = btn.getAttribute("data-key") || "";
@@ -345,6 +318,7 @@ function renderResult() {
       if (obj) applyActionDirect("add", obj);
     });
   });
+
   $("result").querySelectorAll("button[data-act='rowRemove']").forEach(btn => {
     btn.addEventListener("click", () => {
       const key = btn.getAttribute("data-key") || "";
@@ -353,7 +327,6 @@ function renderResult() {
     });
   });
 
-  // CTA : nouveau millésime / nouveau vin
   const btnNewVintage = document.getElementById("btnNewVintage");
   if (btnNewVintage) {
     btnNewVintage.onclick = () => {
@@ -362,12 +335,9 @@ function renderResult() {
       const base = (last.dataInCave && last.dataInCave[0]) ? last.dataInCave[0] : (last.product || {});
       fillFormFromAny(base);
 
-      if ($("f_millesime")) $("f_millesime").value = ""; // vide pour nouveau millésime
+      if ($("f_millesime")) $("f_millesime").value = "";
 
-      // bouton Ajouter centré
       setUpsertButtonMode("add");
-
-      // création, pas édition
       editingOldKey = "";
 
       setTimeout(() => {
@@ -405,11 +375,6 @@ function buildInfoLinks(ean, obj) {
   };
 }
 
-/**
- * Bouton du formulaire (#btnUpsert)
- * - Si le bouton affiche "Ajouter" => action=add + demande quantité + crée/augmente la fiche (ean+millesime)
- * - Sinon => action=upsert (conservé, mais non déclenché via UI actuellement)
- */
 async function upsert() {
   const ean = normalizeEan($("ean")?.value || last.ean);
   if (!ean) return alert("EAN manquant.");
@@ -457,7 +422,6 @@ async function upsert() {
     return;
   }
 
-  // Mode upsert (conservé)
   const payload = {
     action: "upsert",
     ean,
@@ -533,12 +497,7 @@ function startScan() {
     numOfWorkers: 0,
     frequency: 20,
     decoder: {
-      readers: [
-        "ean_reader",
-        "ean_8_reader",
-        "upc_reader",
-        "upc_e_reader"
-      ]
+      readers: ["ean_reader", "ean_8_reader", "upc_reader", "upc_e_reader"]
     },
     locate: true
   };
