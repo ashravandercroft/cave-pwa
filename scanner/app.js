@@ -4,7 +4,7 @@ const API_URL = "https://script.google.com/macros/s/AKfycbyxfNO9zWm3CT-GACd0oQE_
 const $ = (id) => document.getElementById(id);
 
 window.__APP_LOADED__ = "OK";
-alert("APP.JS chargé V8");
+alert("APP.JS chargé V9");
 
 // ✅ old_key uniquement en mode édition (via bouton "Modifier la fiche")
 let editingOldKey = "";
@@ -171,9 +171,12 @@ function renderResult() {
     const total = cave.reduce((s, x) => s + Number(x.quantite || 0), 0);
     title = "Déjà dans la cave";
     sub = "Total : " + total + " bouteille(s)";
+
+    // ✅ MODIF : on n'affiche QUE millésime + quantité (plus de (?) / parenthèses)
     detailsHtml = cave
-      .map(x => `• ${escapeHtml(x.millesime || "NV")} : <b>${escapeHtml(String(x.quantite || 0))}</b> (${escapeHtml(x.emplacement || "?" )})`)
+      .map(x => `• ${escapeHtml(x.millesime || "NV")} : <b>${escapeHtml(String(x.quantite || 0))}</b>`)
       .join("<br>");
+
   } else if (p) {
     title = escapeHtml(p.nom || "Vin détecté");
     sub = escapeHtml(p.domaine || "—");
