@@ -1,16 +1,17 @@
 // /cave/app.js (modifié)
-// Objectif : nouvelle présentation des vins + mini-encadré commentaire + ligne de boutons selon ton ordre
-// + Note cliquable : ouverture d’une édition inline (0..10 step 0.5)
-// + Robustesse : éviter "Chargement" infini (timeout + erreurs visibles) + tolérer réponses non-JSON
+// Objectif : nouvelle présentation des vins + mini-encadré commentaire
+// iPhone layout demandé :
+// - Note en haut à droite (dans l’angle du bloc vin)
+// - Ligne 1 : "Ajouter un commentaire" + "Modifier la fiche" centrés
+// - Ligne 2 : "+" puis "–" centrés
 
-// Même API que le scanner
 const API_URL = "https://script.google.com/macros/s/AKfycbyxfNO9zWm3CT-GACd0oQE_ambHcJ33VHrQOxVxQIIEEpuv53G_A08cWqHXOsYcofaD/exec";
 const $ = (id) => document.getElementById(id);
 
-alert("CAVE APP.JS V-NOUVEAU-LAYOUT");
+alert("CAVE APP.JS V-LAYOUT-IPHONE-1");
 
-let all = [];     // toutes les lignes de la cave
-let view = [];    // lignes filtrées
+let all = [];
+let view = [];
 
 function setStatus(t){
   const el = $("status");
@@ -63,7 +64,7 @@ function normalizeRatingHalf(v) {
   const n = Number(String(v).replace(",", "."));
   if (Number.isNaN(n)) return "";
   const clamped = Math.max(0, Math.min(10, n));
-  return Math.round(clamped * 2) / 2; // pas de 0,5 (arrondi au demi)
+  return Math.round(clamped * 2) / 2;
 }
 
 /* ---------- AFFICHAGE ---------- */
@@ -132,6 +133,7 @@ function compare(a, b){
   if (sortBy === "year") {
     const ay = parseYear(a.millesime);
     const by = parseYear(b.millesime);
+
     const aNV = ay === -1;
     const bNV = by === -1;
     if (aNV && !bNV) return 1;
@@ -193,44 +195,55 @@ function render(){
     const ratingValue = (o.rating === 0 || o.rating) ? String(o.rating) : "";
 
     div.innerHTML = `
-      <!-- Domaine + millésime -->
-      <div class="itemTitle" style="font-weight:800;">
-        ${escapeHtml(fmtHeader(o))}
-      </div>
+      <!-- Wrapper relatif pour mettre la note en angle haut droit -->
+      <div style="position:relative;">
 
-      <!-- Nom -->
-      <div style="margin-top:6px; font-size:14px; color: rgba(17,24,39,.92);">
-        ${escapeHtml(fmtWineTitle(o))}
-      </div>
+        <!-- Note en haut à droite -->
+        <button type="button"
+          class="btn secondary"
+          data-act="rate"
+          data-key="${escapeHtml(k)}"
+          style="
+            position:absolute;
+            top:0;
+            right:0;
+            padding:6px 10px;
+          ">
+          ${escapeHtml(ratingText)}
+        </button>
 
-      <!-- Stock + note cliquable -->
-      <div style="margin-top:10px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-        <div style="font-size:13px; color: rgba(17,24,39,.72);">
+        <!-- Domaine + millésime -->
+        <div class="itemTitle" style="font-weight:800; padding-right:90px;">
+          ${escapeHtml(fmtHeader(o))}
+        </div>
+
+        <!-- Nom -->
+        <div style="margin-top:6px; font-size:14px; color: rgba(17,24,39,.92); padding-right:90px;">
+          ${escapeHtml(fmtWineTitle(o))}
+        </div>
+
+        <!-- Stock -->
+        <div style="margin-top:10px; font-size:13px; color: rgba(17,24,39,.72);">
           En stock : <span style="font-weight:900; color: rgba(17,24,39,.92);">${escapeHtml(String(qty))}</span>
         </div>
 
-        <!-- NOTE cliquable -->
-        <button type="button" class="btn secondary" data-act="rate" data-key="${escapeHtml(k)}"
-          style="padding:6px 10px;">
-          ${escapeHtml(ratingText)}
-        </button>
-      </div>
-
-      <!-- Edition note inline -->
-      <div class="editBox hidden rateBox" id="rate_${sk}" style="margin-top:10px;">
-        <div class="small" style="margin-bottom:6px;">Note /10</div>
-        <input class="input" id="rv_${sk}" type="number" min="0" max="10" step="0.5" inputmode="decimal"
-          value="${escapeHtml(ratingValue)}" placeholder="ex: 7.5" />
-
-        <div class="actions" style="margin-top:10px;">
-          <button type="button" class="btn primary" data-act="saveRate" data-key="${escapeHtml(k)}">Enregistrer</button>
-          <button type="button" class="btn secondary" data-act="cancelRate" data-key="${escapeHtml(k)}">Annuler</button>
+        <!-- EAN -->
+        <div class="small" style="margin-top:8px;">
+          EAN : ${escapeHtml(o.ean || "")}
         </div>
-      </div>
 
-      <!-- EAN -->
-      <div class="small" style="margin-top:8px;">
-        EAN : ${escapeHtml(o.ean || "")}
+        <!-- Edition note inline -->
+        <div class="editBox hidden rateBox" id="rate_${sk}" style="margin-top:10px;">
+          <div class="small" style="margin-bottom:6px;">Note /10</div>
+          <input class="input" id="rv_${sk}" type="number" min="0" max="10" step="0.5" inputmode="decimal"
+            value="${escapeHtml(ratingValue)}" placeholder="ex: 7.5" />
+
+          <div class="actions" style="margin-top:10px;">
+            <button type="button" class="btn primary" data-act="saveRate" data-key="${escapeHtml(k)}">Enregistrer</button>
+            <button type="button" class="btn secondary" data-act="cancelRate" data-key="${escapeHtml(k)}">Annuler</button>
+          </div>
+        </div>
+
       </div>
 
       <!-- Espace -->
@@ -247,8 +260,8 @@ function render(){
         </div>
       </div>
 
-      <!-- Ligne boutons -->
-      <div style="display:flex; align-items:center; gap:8px; margin-top:12px; flex-wrap:wrap;">
+      <!-- Ligne 1 : boutons centrés -->
+      <div style="display:flex; justify-content:center; gap:8px; margin-top:12px; flex-wrap:wrap;">
         <button type="button" class="btn secondary" data-act="comment" data-key="${escapeHtml(k)}">
           Ajouter un commentaire
         </button>
@@ -256,11 +269,12 @@ function render(){
         <button type="button" class="btn secondary" data-act="edit" data-key="${escapeHtml(k)}">
           Modifier la fiche
         </button>
+      </div>
 
-        <div style="margin-left:auto; display:flex; gap:8px;">
-          <button type="button" class="btn primary" data-act="add" data-key="${escapeHtml(k)}">+</button>
-          <button type="button" class="btn danger" data-act="remove" data-key="${escapeHtml(k)}">–</button>
-        </div>
+      <!-- Ligne 2 : + puis – centrés -->
+      <div style="display:flex; justify-content:center; gap:8px; margin-top:10px;">
+        <button type="button" class="btn primary" data-act="add" data-key="${escapeHtml(k)}">+</button>
+        <button type="button" class="btn danger" data-act="remove" data-key="${escapeHtml(k)}">–</button>
       </div>
 
       <!-- Edition commentaire inline -->
@@ -307,7 +321,6 @@ function render(){
             <input class="input" id="ef_${sk}" value="${escapeHtml(o.format || "")}" placeholder="75cl" />
           </div>
 
-          <!-- NOTE /10 dans la fiche (garde l’édition ici aussi si tu veux) -->
           <div>
             <div class="small" style="margin-bottom:6px;">Note /10</div>
             <input class="input" id="er_${sk}" type="number" min="0" max="10" step="0.5" inputmode="decimal"
@@ -335,7 +348,7 @@ function render(){
     list.appendChild(div);
   }
 
-  // Bind actions
+  // Bind actions (click suffit si page bien rechargée)
   list.querySelectorAll("button[data-act]").forEach(btn => {
     btn.addEventListener("click", () => {
       const act = btn.getAttribute("data-act");
@@ -508,14 +521,13 @@ async function saveComment(o){
   await refresh();
 }
 
-/* ---------- NOTE (clic sur le bouton note) ---------- */
+/* ---------- NOTE ---------- */
 
 function toggleRate(key){
   const sk = safeKey(key);
   const box = document.getElementById("rate_" + sk);
   if (!box) return;
 
-  // Fermer les autres boîtes note
   document.querySelectorAll(".rateBox").forEach(el => {
     if (el !== box) el.classList.add("hidden");
   });
