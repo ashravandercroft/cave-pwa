@@ -1,18 +1,17 @@
 // /scanner/app.js
 // Objectif :
-// - Garder l’affichage "Résultat" (titre + total) SANS la liste "2023 : 2"
-// - Si déjà en cave : afficher des encadrés (Domaine - Nom - Millésime - X bouteilles) + boutons + / - à droite
-// - Bouton "Nouveau millésime en cave" => ouvre le formulaire prérempli + bouton "Ajouter" (demande qty puis action=add)
-// - Si pas en cave : bouton "Nouveau vin en cave" => ouvre formulaire prérempli + bouton "Ajouter"
-// - Bouton "Modifier la fiche" conserve l’édition (upsert) avec choix du millésime si plusieurs
+// - Si déjà en cave : afficher des encadrés (Domaine - Nom) puis Millésime à la ligne en dessous + X bouteilles, et + / - à droite
+// - Bouton "Nouveau millésime en cave" => ouvre le formulaire prérempli + bouton "Ajouter" centré (demande qty puis action=add)
+// - Si pas en cave : bouton "Nouveau vin en cave" => ouvre formulaire prérempli + bouton "Ajouter" centré
+// - Suppression du bouton "Modifier la fiche"
 
 const API_URL = "https://script.google.com/macros/s/AKfycbyxfNO9zWm3CT-GACd0oQE_ambHcJ33VHrQOxVxQIIEEpuv53G_A08cWqHXOsYcofaD/exec";
 const $ = (id) => document.getElementById(id);
 
 window.__APP_LOADED__ = "OK";
-alert("APP.JS chargé V10");
+alert("APP.JS chargé V11");
 
-let editingOldKey = "";
+let editingOldKey = ""; // conservé (au cas où), mais plus utilisé via UI
 
 let last = {
   ean: "",
@@ -103,6 +102,25 @@ function fillFormFromAny(o) {
   if ($("f_emplacement")) $("f_emplacement").value = o.emplacement || "";
 }
 
+/* ===========================
+   Mode bouton formulaire : Ajouter (centré) / Enregistrer (normal)
+   =========================== */
+
+function setUpsertButtonMode(mode) {
+  const btn = $("btnUpsert");
+  if (!btn) return;
+
+  if (mode === "add") {
+    btn.textContent = "Ajouter";
+    btn.style.display = "block";
+    btn.style.margin = "14px auto 0";
+  } else {
+    btn.textContent = "Enregistrer";
+    btn.style.display = "";
+    btn.style.margin = "";
+  }
+}
+
 /**
  * lookup(ean, opts)
  * opts.keepScreen = true => ne cache pas result/form au démarrage
@@ -113,8 +131,9 @@ async function lookup(ean, opts = {}) {
 
   last.ean = ean;
 
-  // à chaque scan/recherche, on sort du mode édition
+  // reset mode
   editingOldKey = "";
+  setUpsertButtonMode("save");
 
   setStatus("Recherche…");
 
@@ -152,7 +171,6 @@ async function lookup(ean, opts = {}) {
 
   last.product = offProduct;
 
-  // On affiche le résultat
   renderResult();
   setStatus("Prêt");
 
@@ -162,22 +180,28 @@ async function lookup(ean, opts = {}) {
 
 /* ===========================
    UI : Encadrés des millésimes en cave
+   - Ligne 1 : Domaine - Nom
+   - Ligne 2 : Millésime
+   - Ligne 3 : X bouteille(s)
    =========================== */
 
-function renderCaveCards(cave){
+function renderCaveCards(cave) {
   const rows = (cave || []).map((x) => {
     const domaine = (x.domaine || "").trim();
     const nom = (x.nom || "").trim();
     const millesime = (x.millesime || "NV").toString().trim();
     const qty = Number(x.quantite || 0);
 
-    const title = [domaine, nom, millesime].filter(Boolean).join(" - ");
+    const line1 = [domaine, nom].filter(Boolean).join(" - ") || "Vin";
 
     return `
       <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px; border:1px solid rgba(17,24,39,.10); border-radius:14px; background: rgba(255,255,255,.9); box-shadow: 0 6px 18px rgba(0,0,0,.04); margin-top:10px;">
         <div style="min-width:0;">
           <div style="font-weight:800; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-            ${escapeHtml(title || "Vin")}
+            ${escapeHtml(line1)}
+          </div>
+          <div style="margin-top:4px; font-size:13px; color: rgba(17,24,39,.72);">
+            ${escapeHtml(millesime)}
           </div>
           <div style="margin-top:4px; font-size:13px; color: rgba(17,24,39,.72);">
             ${escapeHtml(String(qty))} bouteille(s)
@@ -195,7 +219,7 @@ function renderCaveCards(cave){
   return rows || "";
 }
 
-async function applyActionDirect(action, obj){
+async function applyActionDirect(action, obj) {
   if (!obj || !obj.ean) return;
 
   const txt = prompt(
@@ -238,7 +262,7 @@ async function applyActionDirect(action, obj){
 }
 
 /* ===========================
-   Rendu du résultat
+   Rendu du résultat (sans "2023 : 2")
    =========================== */
 
 function renderResult() {
@@ -298,8 +322,7 @@ function renderResult() {
 
     ${ctaHtml}
 
-    <div class="actionsRow" style="margin-top:12px;">
-      <button type="button" class="btn secondary" id="btnEdit">Modifier la fiche</button>
+    <div class="actionsRow" style="margin-top:12px; justify-content:center;">
       <button type="button" class="btn secondary" id="btnInfo">Infos</button>
     </div>
 
@@ -335,12 +358,17 @@ function renderResult() {
   if (btnNewVintage) {
     btnNewVintage.onclick = () => {
       show("form");
+
       const base = (last.dataInCave && last.dataInCave[0]) ? last.dataInCave[0] : (last.product || {});
       fillFormFromAny(base);
 
       if ($("f_millesime")) $("f_millesime").value = ""; // vide pour nouveau millésime
-      if ($("btnUpsert")) $("btnUpsert").textContent = "Ajouter";
-      editingOldKey = ""; // création, pas édition
+
+      // bouton Ajouter centré
+      setUpsertButtonMode("add");
+
+      // création, pas édition
+      editingOldKey = "";
 
       setTimeout(() => {
         $("form")?.scrollIntoView({ behavior:"smooth", block:"start" });
@@ -352,46 +380,16 @@ function renderResult() {
   if (btnNewWine) {
     btnNewWine.onclick = () => {
       show("form");
-      // préremplir via OFF si possible, sans écraser si user a déjà saisi
+
       fillFormFromProduct(last.product || {});
-      if ($("btnUpsert")) $("btnUpsert").textContent = "Ajouter";
-      editingOldKey = ""; // création, pas édition
+      setUpsertButtonMode("add");
+      editingOldKey = "";
 
       setTimeout(() => {
         $("form")?.scrollIntoView({ behavior:"smooth", block:"start" });
       }, 120);
     };
   }
-
-  // Modifier fiche : édition (upsert), choix millésime si plusieurs
-  $("btnEdit").onclick = () => {
-    if (!last.dataInCave || last.dataInCave.length === 0) {
-      show("form");
-      fillFormFromAny(last.product || {});
-      if ($("btnUpsert")) $("btnUpsert").textContent = "Enregistrer";
-      editingOldKey = "";
-      return;
-    }
-
-    let objToEdit = last.dataInCave[0];
-
-    if (last.dataInCave.length > 1) {
-      const choices = last.dataInCave.map(x => x.millesime || "NV");
-      const picked = prompt("Quel millésime voulez-vous modifier ? " + choices.join(", "), choices[0]);
-      const m = (picked || "").trim() || choices[0];
-      objToEdit = last.dataInCave.find(x => (x.millesime || "NV") === m) || last.dataInCave[0];
-    }
-
-    editingOldKey = String(objToEdit.key || "").trim();
-
-    show("form");
-    fillFormFromAny(objToEdit);
-    if ($("btnUpsert")) $("btnUpsert").textContent = "Enregistrer";
-
-    setTimeout(() => {
-      $("form")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 120);
-  };
 }
 
 function buildInfoLinks(ean, obj) {
@@ -410,7 +408,7 @@ function buildInfoLinks(ean, obj) {
 /**
  * Bouton du formulaire (#btnUpsert)
  * - Si le bouton affiche "Ajouter" => action=add + demande quantité + crée/augmente la fiche (ean+millesime)
- * - Sinon => action=upsert (édition) avec old_key (si présent)
+ * - Sinon => action=upsert (conservé, mais non déclenché via UI actuellement)
  */
 async function upsert() {
   const ean = normalizeEan($("ean")?.value || last.ean);
@@ -459,7 +457,7 @@ async function upsert() {
     return;
   }
 
-  // Mode édition (upsert)
+  // Mode upsert (conservé)
   const payload = {
     action: "upsert",
     ean,
@@ -489,10 +487,6 @@ async function upsert() {
 
   editingOldKey = "";
   await lookup(ean, { keepScreen: true });
-
-  setTimeout(() => {
-    $("result")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, 200);
 }
 
 /* ===========================
