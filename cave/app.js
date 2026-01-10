@@ -1,14 +1,13 @@
 // /cave/app.js (modifié)
-// Objectif : nouvelle présentation des vins + mini-encadré commentaire
-// iPhone layout demandé :
-// - Note en haut à droite (dans l’angle du bloc vin)
-// - Ligne 1 : "Ajouter un commentaire" + "Modifier la fiche" centrés
-// - Ligne 2 : "+" puis "–" centrés
+// Objectif : layout iPhone
+// - Note angle haut droit
+// - Ligne 1 : "Ajouter un commentaire" + "Modifier la fiche" centrés, même largeur/hauteur
+// - Ligne 2 : + puis – centrés
 
 const API_URL = "https://script.google.com/macros/s/AKfycbyxfNO9zWm3CT-GACd0oQE_ambHcJ33VHrQOxVxQIIEEpuv53G_A08cWqHXOsYcofaD/exec";
 const $ = (id) => document.getElementById(id);
 
-alert("CAVE APP.JS V-LAYOUT-IPHONE-1");
+alert("CAVE APP.JS V-LAYOUT-IPHONE-2");
 
 let all = [];
 let view = [];
@@ -18,18 +17,11 @@ function setStatus(t){
   if (el) el.textContent = t || "";
 }
 
-/* ======================
-   API
-   ====================== */
-
 async function apiGet(url){
   const res = await fetch(url, { method:"GET", cache:"no-store" });
   const txt = await res.text();
-  try {
-    return JSON.parse(txt);
-  } catch (e) {
-    return { ok:false, error:"Réponse API non-JSON", raw: txt.slice(0, 800) };
-  }
+  try { return JSON.parse(txt); }
+  catch { return { ok:false, error:"Réponse API non-JSON", raw: txt.slice(0, 800) }; }
 }
 
 async function apiPost(payload){
@@ -57,8 +49,6 @@ function getByKey(key){
   return all.find(x => (x.key || "") === key);
 }
 
-/* ---------- NOTE /10 ---------- */
-
 function normalizeRatingHalf(v) {
   if (v === "" || v === null || v === undefined) return "";
   const n = Number(String(v).replace(",", "."));
@@ -67,11 +57,8 @@ function normalizeRatingHalf(v) {
   return Math.round(clamped * 2) / 2;
 }
 
-/* ---------- AFFICHAGE ---------- */
-
 function fmtWineTitle(o){
-  const nom = (o.nom || "").trim() || "Vin";
-  return nom;
+  return (o.nom || "").trim() || "Vin";
 }
 
 function fmtHeader(o){
@@ -79,8 +66,6 @@ function fmtHeader(o){
   const millesime = (o.millesime || "NV").toString().trim();
   return `${domaine} - ${millesime}`;
 }
-
-/* ---------- FILTRES ---------- */
 
 function matches(o){
   const q = normalize($("q")?.value);
@@ -98,16 +83,12 @@ function matches(o){
   return Number(o.quantite || 0) > 0;
 }
 
-/* ---------- TRI ---------- */
-
 function parseYear(millesime){
   const s = (millesime || "").toString().trim();
   if (!s) return -1;
   if (s.toUpperCase() === "NV") return -1;
-
   const match = s.match(/\b(19|20)\d{2}\b/);
   if (!match) return -1;
-
   return parseInt(match[0], 10);
 }
 
@@ -163,7 +144,9 @@ function compare(a, b){
   return 0;
 }
 
-/* ---------- RENDER ---------- */
+/* ======================
+   RENDER
+   ====================== */
 
 function render(){
   const list = $("list");
@@ -194,45 +177,46 @@ function render(){
     const ratingText = (o.rating === 0 || o.rating) ? `${o.rating}/10` : "Note —";
     const ratingValue = (o.rating === 0 || o.rating) ? String(o.rating) : "";
 
+    // Styles inline pour rendre les 2 boutons strictement identiques
+    const twinBtnStyle = `
+      width: 180px;
+      height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      white-space: normal;
+      line-height: 1.15;
+      padding: 0 10px;
+    `;
+
     div.innerHTML = `
-      <!-- Wrapper relatif pour mettre la note en angle haut droit -->
       <div style="position:relative;">
 
-        <!-- Note en haut à droite -->
         <button type="button"
           class="btn secondary"
           data-act="rate"
           data-key="${escapeHtml(k)}"
-          style="
-            position:absolute;
-            top:0;
-            right:0;
-            padding:6px 10px;
-          ">
+          style="position:absolute; top:0; right:0; padding:6px 10px;">
           ${escapeHtml(ratingText)}
         </button>
 
-        <!-- Domaine + millésime -->
         <div class="itemTitle" style="font-weight:800; padding-right:90px;">
           ${escapeHtml(fmtHeader(o))}
         </div>
 
-        <!-- Nom -->
         <div style="margin-top:6px; font-size:14px; color: rgba(17,24,39,.92); padding-right:90px;">
           ${escapeHtml(fmtWineTitle(o))}
         </div>
 
-        <!-- Stock -->
         <div style="margin-top:10px; font-size:13px; color: rgba(17,24,39,.72);">
           En stock : <span style="font-weight:900; color: rgba(17,24,39,.92);">${escapeHtml(String(qty))}</span>
         </div>
 
-        <!-- EAN -->
         <div class="small" style="margin-top:8px;">
           EAN : ${escapeHtml(o.ean || "")}
         </div>
 
-        <!-- Edition note inline -->
         <div class="editBox hidden rateBox" id="rate_${sk}" style="margin-top:10px;">
           <div class="small" style="margin-bottom:6px;">Note /10</div>
           <input class="input" id="rv_${sk}" type="number" min="0" max="10" step="0.5" inputmode="decimal"
@@ -246,10 +230,8 @@ function render(){
 
       </div>
 
-      <!-- Espace -->
       <div style="height:12px;"></div>
 
-      <!-- Commentaire mini-encadré -->
       <div class="item" style="padding:10px; margin:0; border-radius:14px; box-shadow: 0 6px 18px rgba(0,0,0,.04);">
         <div class="small" id="comment_text_${sk}"
              style="${commentText ? "" : "display:none;"} white-space:pre-wrap; color: rgba(17,24,39,.72); font-size:13px;">
@@ -260,24 +242,25 @@ function render(){
         </div>
       </div>
 
-      <!-- Ligne 1 : boutons centrés -->
-      <div style="display:flex; justify-content:center; gap:8px; margin-top:12px; flex-wrap:wrap;">
-        <button type="button" class="btn secondary" data-act="comment" data-key="${escapeHtml(k)}">
+      <!-- Ligne 1 : deux boutons strictement identiques -->
+      <div style="display:flex; justify-content:center; gap:10px; margin-top:12px; flex-wrap:wrap;">
+        <button type="button" class="btn secondary" data-act="comment" data-key="${escapeHtml(k)}"
+          style="${twinBtnStyle}">
           Ajouter un commentaire
         </button>
 
-        <button type="button" class="btn secondary" data-act="edit" data-key="${escapeHtml(k)}">
+        <button type="button" class="btn secondary" data-act="edit" data-key="${escapeHtml(k)}"
+          style="${twinBtnStyle}">
           Modifier la fiche
         </button>
       </div>
 
       <!-- Ligne 2 : + puis – centrés -->
-      <div style="display:flex; justify-content:center; gap:8px; margin-top:10px;">
+      <div style="display:flex; justify-content:center; gap:10px; margin-top:10px;">
         <button type="button" class="btn primary" data-act="add" data-key="${escapeHtml(k)}">+</button>
         <button type="button" class="btn danger" data-act="remove" data-key="${escapeHtml(k)}">–</button>
       </div>
 
-      <!-- Edition commentaire inline -->
       <div class="editBox hidden commentBox" id="comment_${sk}" style="margin-top:10px;">
         <div class="small" style="margin-bottom:6px;">Commentaire</div>
         <textarea class="input" id="ct_${sk}" rows="3" maxlength="1000" placeholder="Votre commentaire...">${escapeHtml(commentText)}</textarea>
@@ -288,7 +271,6 @@ function render(){
         </div>
       </div>
 
-      <!-- Edition inline (fiche) -->
       <div class="editBox hidden" id="edit_${sk}">
         <div class="editGrid">
           <div>
@@ -348,7 +330,6 @@ function render(){
     list.appendChild(div);
   }
 
-  // Bind actions (click suffit si page bien rechargée)
   list.querySelectorAll("button[data-act]").forEach(btn => {
     btn.addEventListener("click", () => {
       const act = btn.getAttribute("data-act");
@@ -357,129 +338,57 @@ function render(){
       if (!obj) return;
 
       if (act === "edit") { toggleEdit(key); return; }
-      if (act === "cancel") { closeEdit(key); return; }
-      if (act === "save") { saveEdit(obj); return; }
-
       if (act === "comment") { toggleComment(key); return; }
-      if (act === "cancelComment") { closeComment(key); return; }
-      if (act === "saveComment") { saveComment(obj); return; }
-
       if (act === "rate") { toggleRate(key); return; }
       if (act === "cancelRate") { closeRate(key); return; }
       if (act === "saveRate") { saveRate(obj); return; }
+      if (act === "cancelComment") { closeComment(key); return; }
+      if (act === "saveComment") { saveComment(obj); return; }
 
       applyAction(act, obj);
     });
   });
 }
 
-/* ---------- EDITION FICHE ---------- */
-
-function toggleEdit(key){
-  const sk = safeKey(key);
-  const box = document.getElementById("edit_" + sk);
-  if (!box) return;
-
-  document.querySelectorAll(".editBox").forEach(el => {
-    if (el !== box && !el.classList.contains("commentBox") && !el.classList.contains("rateBox")) {
-      el.classList.add("hidden");
-    }
-  });
-
-  box.classList.toggle("hidden");
-}
-
-function closeEdit(key){
-  const sk = safeKey(key);
-  const box = document.getElementById("edit_" + sk);
-  if (box) box.classList.add("hidden");
-}
-
-async function saveEdit(o){
-  const sk = safeKey(o.key);
-
-  const nom = document.getElementById("en_" + sk)?.value?.trim() || "";
-  const domaine = document.getElementById("ed_" + sk)?.value?.trim() || "";
-  const appellation = document.getElementById("ea_" + sk)?.value?.trim() || "";
-  const millesime = document.getElementById("em_" + sk)?.value?.trim() || "NV";
-  const couleur = document.getElementById("ec_" + sk)?.value?.trim() || "";
-  const format = document.getElementById("ef_" + sk)?.value?.trim() || "";
-  const emplacement = document.getElementById("ee_" + sk)?.value?.trim() || "";
-  const rating = normalizeRatingHalf(document.getElementById("er_" + sk)?.value ?? "");
-
-  if (!nom) {
-    alert("Le nom est obligatoire.");
-    return;
-  }
-
-  setStatus("Enregistrement…");
-
-  const payload = {
-    action: "upsert",
-    ean: o.ean,
-    millesime,
-
-    old_key: o.key || "",
-    old_millesime: o.millesime || "NV",
-
-    nom,
-    domaine,
-    appellation,
-    couleur,
-    format,
-    emplacement,
-    image_url: o.image_url || "",
-    notes: o.notes || "",
-
-    rating,
-    comment: (o.comment || "").trim(),
-
-    source: "cave"
-  };
-
-  const res = await apiPost(payload);
-  if (!res.ok) {
-    setStatus("Erreur");
-    alert(res.error || "Erreur API");
-    return;
-  }
-
-  setStatus("Enregistré");
-  await refresh();
-
-  const migrated = !!(res.data && res.data.migrated);
-  const movedQty = res.data && res.data.moved_qty !== undefined ? Number(res.data.moved_qty) : 0;
-
-  if (migrated) {
-    alert(
-      "Millésime modifié.\n" +
-      "Stock déplacé : " + movedQty + " bouteille(s).\n" +
-      "Ancienne fiche supprimée."
-    );
-  } else {
-    alert("Fiche mise à jour.");
-  }
-}
-
-/* ---------- COMMENTAIRE ---------- */
+/* ---------- TOGGLES ---------- */
 
 function toggleComment(key){
   const sk = safeKey(key);
   const box = document.getElementById("comment_" + sk);
   if (!box) return;
-
-  document.querySelectorAll(".commentBox").forEach(el => {
-    if (el !== box) el.classList.add("hidden");
-  });
-
+  document.querySelectorAll(".commentBox").forEach(el => { if (el !== box) el.classList.add("hidden"); });
   box.classList.toggle("hidden");
 }
-
 function closeComment(key){
   const sk = safeKey(key);
   const box = document.getElementById("comment_" + sk);
   if (box) box.classList.add("hidden");
 }
+
+function toggleEdit(key){
+  const sk = safeKey(key);
+  const box = document.getElementById("edit_" + sk);
+  if (!box) return;
+  document.querySelectorAll(".editBox").forEach(el => {
+    if (el !== box && !el.classList.contains("commentBox") && !el.classList.contains("rateBox")) el.classList.add("hidden");
+  });
+  box.classList.toggle("hidden");
+}
+
+function toggleRate(key){
+  const sk = safeKey(key);
+  const box = document.getElementById("rate_" + sk);
+  if (!box) return;
+  document.querySelectorAll(".rateBox").forEach(el => { if (el !== box) el.classList.add("hidden"); });
+  box.classList.toggle("hidden");
+}
+function closeRate(key){
+  const sk = safeKey(key);
+  const box = document.getElementById("rate_" + sk);
+  if (box) box.classList.add("hidden");
+}
+
+/* ---------- SAVES ---------- */
 
 async function saveComment(o){
   const sk = safeKey(o.key);
@@ -491,10 +400,8 @@ async function saveComment(o){
     action: "upsert",
     ean: o.ean,
     millesime: o.millesime || "NV",
-
     old_key: o.key || "",
     old_millesime: o.millesime || "NV",
-
     nom: o.nom || "",
     domaine: o.domaine || "",
     appellation: o.appellation || "",
@@ -503,42 +410,16 @@ async function saveComment(o){
     emplacement: o.emplacement || "",
     image_url: o.image_url || "",
     notes: o.notes || "",
-
     rating: (o.rating === 0 || o.rating) ? o.rating : "",
     comment,
-
     source: "cave"
   };
 
   const res = await apiPost(payload);
-  if (!res.ok) {
-    setStatus("Erreur");
-    alert(res.error || "Erreur API");
-    return;
-  }
+  if (!res.ok) { setStatus("Erreur"); alert(res.error || "Erreur API"); return; }
 
   setStatus("Enregistré");
   await refresh();
-}
-
-/* ---------- NOTE ---------- */
-
-function toggleRate(key){
-  const sk = safeKey(key);
-  const box = document.getElementById("rate_" + sk);
-  if (!box) return;
-
-  document.querySelectorAll(".rateBox").forEach(el => {
-    if (el !== box) el.classList.add("hidden");
-  });
-
-  box.classList.toggle("hidden");
-}
-
-function closeRate(key){
-  const sk = safeKey(key);
-  const box = document.getElementById("rate_" + sk);
-  if (box) box.classList.add("hidden");
 }
 
 async function saveRate(o){
@@ -552,10 +433,8 @@ async function saveRate(o){
     action: "upsert",
     ean: o.ean,
     millesime: o.millesime || "NV",
-
     old_key: o.key || "",
     old_millesime: o.millesime || "NV",
-
     nom: o.nom || "",
     domaine: o.domaine || "",
     appellation: o.appellation || "",
@@ -564,25 +443,19 @@ async function saveRate(o){
     emplacement: o.emplacement || "",
     image_url: o.image_url || "",
     notes: o.notes || "",
-
     rating,
     comment: (o.comment || "").trim(),
-
     source: "cave"
   };
 
   const res = await apiPost(payload);
-  if (!res.ok) {
-    setStatus("Erreur");
-    alert(res.error || "Erreur API");
-    return;
-  }
+  if (!res.ok) { setStatus("Erreur"); alert(res.error || "Erreur API"); return; }
 
   setStatus("Enregistré");
   await refresh();
 }
 
-/* ---------- ACTIONS +/- ---------- */
+/* ---------- +/- ---------- */
 
 async function applyAction(action, o){
   const txt = prompt(
@@ -592,10 +465,7 @@ async function applyAction(action, o){
   if (txt === null) return;
 
   let qty = parseInt(String(txt).trim(), 10);
-  if (!Number.isFinite(qty) || qty <= 0) {
-    alert("Quantité invalide.");
-    return;
-  }
+  if (!Number.isFinite(qty) || qty <= 0) { alert("Quantité invalide."); return; }
 
   setStatus(action === "add" ? `Ajout… (+${qty})` : `Sortie… (–${qty})`);
 
@@ -612,25 +482,16 @@ async function applyAction(action, o){
     emplacement: o.emplacement || "",
     image_url: o.image_url || "",
     notes: o.notes || "",
-
     rating: (o.rating === 0 || o.rating) ? o.rating : "",
     comment: (o.comment || "").trim(),
-
     source: "cave"
   };
 
   const res = await apiPost(payload);
-  if (!res.ok) {
-    setStatus("Erreur");
-    alert(res.error || "Erreur API");
-    return;
-  }
+  if (!res.ok) { setStatus("Erreur"); alert(res.error || "Erreur API"); return; }
 
   const newQty = res.data && res.data.quantite !== undefined ? Number(res.data.quantite) : null;
   if (newQty !== null) o.quantite = newQty;
-
-  const title = (o.nom || "Le vin").trim();
-  alert(action === "add" ? `"${title}" ajouté (+${qty}).` : `"${title}" sorti (–${qty}).`);
 
   setStatus("Prêt");
   render();
@@ -640,39 +501,27 @@ async function applyAction(action, o){
 
 async function refresh(){
   setStatus("Chargement…");
-
   try {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 12000);
 
-    const res = await fetch(API_URL + "?action=list", {
-      method: "GET",
-      cache: "no-store",
-      signal: ctrl.signal
-    });
-
+    const res = await fetch(API_URL + "?action=list", { method: "GET", cache: "no-store", signal: ctrl.signal });
     clearTimeout(t);
 
     const txt = await res.text();
     let data;
-    try {
-      data = JSON.parse(txt);
-    } catch (e) {
+    try { data = JSON.parse(txt); }
+    catch {
       setStatus("Erreur API (non-JSON)");
       alert("API a renvoyé du texte non-JSON :\n\n" + txt.slice(0, 800));
       return;
     }
 
-    if (!data.ok) {
-      setStatus("Erreur API");
-      alert(data.error || "Erreur API");
-      return;
-    }
+    if (!data.ok) { setStatus("Erreur API"); alert(data.error || "Erreur API"); return; }
 
     all = data.data || [];
     setStatus("Prêt");
     render();
-
   } catch (e) {
     setStatus("Erreur réseau");
     alert("Erreur pendant refresh(): " + (e?.message || e));
