@@ -1,5 +1,6 @@
 // /cave/app.js (modifié)
 // Objectif : nouvelle présentation des vins + mini-encadré commentaire + ligne de boutons selon ton ordre
+// + Note cliquable : ouverture d’une édition inline (0..10 step 0.5)
 // + Robustesse : éviter "Chargement" infini (timeout + erreurs visibles) + tolérer réponses non-JSON
 
 // Même API que le scanner
@@ -21,10 +22,7 @@ function setStatus(t){
    ====================== */
 
 async function apiGet(url){
-  // no-store pour limiter les effets cache / SW
   const res = await fetch(url, { method:"GET", cache:"no-store" });
-
-  // On lit en texte d'abord : si Apps Script renvoie du HTML, res.json() plante
   const txt = await res.text();
   try {
     return JSON.parse(txt);
@@ -50,10 +48,6 @@ function escapeHtml(s) {
     .replaceAll("'", "&#039;");
 }
 
-/**
- * Pour les id HTML : votre key contient "|" (ean|millesime)
- * => on la "sanitize" pour pouvoir l'utiliser dans id=""
- */
 function safeKey(key){
   return String(key || "").replaceAll("|", "__").replaceAll(" ", "_");
 }
@@ -69,7 +63,7 @@ function normalizeRatingHalf(v) {
   const n = Number(String(v).replace(",", "."));
   if (Number.isNaN(n)) return "";
   const clamped = Math.max(0, Math.min(10, n));
-  return Math.round(clamped * 2) / 2; // pas de 0,5
+  return Math.round(clamped * 2) / 2; // pas de 0,5 (arrondi au demi)
 }
 
 /* ---------- AFFICHAGE ---------- */
@@ -121,13 +115,11 @@ function compare(a, b){
   const order = $("sortOrder")?.value || "asc";
   const dir = order === "desc" ? -1 : 1;
 
-  // Nom
   if (sortBy === "name") {
     const an = normalize(a.nom);
     const bn = normalize(b.nom);
     if (an < bn) return -1 * dir;
     if (an > bn) return 1 * dir;
-    // tie-breaker : domaine puis millésime
     const ad = normalize(a.domaine);
     const bd = normalize(b.domaine);
     if (ad < bd) return -1 * dir;
@@ -137,12 +129,9 @@ function compare(a, b){
     return (ay - by) * dir;
   }
 
-  // Millésime
   if (sortBy === "year") {
     const ay = parseYear(a.millesime);
     const by = parseYear(b.millesime);
-
-    // Gérer NV proprement : NV toujours en bas (quel que soit l'ordre)
     const aNV = ay === -1;
     const bNV = by === -1;
     if (aNV && !bNV) return 1;
@@ -150,7 +139,6 @@ function compare(a, b){
 
     if (ay !== by) return (ay - by) * dir;
 
-    // tie-breaker : nom
     const an = normalize(a.nom);
     const bn = normalize(b.nom);
     if (an < bn) return -1 * dir;
@@ -158,13 +146,11 @@ function compare(a, b){
     return 0;
   }
 
-  // Quantité
   if (sortBy === "qty") {
     const aq = Number(a.quantite || 0);
     const bq = Number(b.quantite || 0);
     if (aq !== bq) return (aq - bq) * dir;
 
-    // tie-breaker : nom
     const an = normalize(a.nom);
     const bn = normalize(b.nom);
     if (an < bn) return -1 * dir;
@@ -202,10 +188,12 @@ function render(){
 
     const commentText = (o.comment || "").trim();
     const qty = Number(o.quantite || 0);
+
     const ratingText = (o.rating === 0 || o.rating) ? `${o.rating}/10` : "Note —";
+    const ratingValue = (o.rating === 0 || o.rating) ? String(o.rating) : "";
 
     div.innerHTML = `
-      <!-- Domaine + millésime en premier, en gras -->
+      <!-- Domaine + millésime -->
       <div class="itemTitle" style="font-weight:800;">
         ${escapeHtml(fmtHeader(o))}
       </div>
@@ -215,15 +203,28 @@ function render(){
         ${escapeHtml(fmtWineTitle(o))}
       </div>
 
-      <!-- En stock + quantité (et note en style bouton) -->
+      <!-- Stock + note cliquable -->
       <div style="margin-top:10px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
         <div style="font-size:13px; color: rgba(17,24,39,.72);">
           En stock : <span style="font-weight:900; color: rgba(17,24,39,.92);">${escapeHtml(String(qty))}</span>
         </div>
 
-        <!-- Note au style "bouton" (comme + / - / Modifier) -->
-        <div class="btn secondary" style="padding:6px 10px; cursor:default; user-select:none;">
+        <!-- NOTE cliquable -->
+        <button type="button" class="btn secondary" data-act="rate" data-key="${escapeHtml(k)}"
+          style="padding:6px 10px;">
           ${escapeHtml(ratingText)}
+        </button>
+      </div>
+
+      <!-- Edition note inline -->
+      <div class="editBox hidden rateBox" id="rate_${sk}" style="margin-top:10px;">
+        <div class="small" style="margin-bottom:6px;">Note /10</div>
+        <input class="input" id="rv_${sk}" type="number" min="0" max="10" step="0.5" inputmode="decimal"
+          value="${escapeHtml(ratingValue)}" placeholder="ex: 7.5" />
+
+        <div class="actions" style="margin-top:10px;">
+          <button type="button" class="btn primary" data-act="saveRate" data-key="${escapeHtml(k)}">Enregistrer</button>
+          <button type="button" class="btn secondary" data-act="cancelRate" data-key="${escapeHtml(k)}">Annuler</button>
         </div>
       </div>
 
@@ -235,9 +236,10 @@ function render(){
       <!-- Espace -->
       <div style="height:12px;"></div>
 
-      <!-- Commentaire en mini-encadré -->
+      <!-- Commentaire mini-encadré -->
       <div class="item" style="padding:10px; margin:0; border-radius:14px; box-shadow: 0 6px 18px rgba(0,0,0,.04);">
-        <div class="small" id="comment_text_${sk}" style="${commentText ? "" : "display:none;"} white-space:pre-wrap; color: rgba(17,24,39,.72); font-size:13px;">
+        <div class="small" id="comment_text_${sk}"
+             style="${commentText ? "" : "display:none;"} white-space:pre-wrap; color: rgba(17,24,39,.72); font-size:13px;">
           ${escapeHtml(commentText)}
         </div>
         <div class="small" id="comment_empty_${sk}" style="${commentText ? "display:none;" : ""}">
@@ -245,7 +247,7 @@ function render(){
         </div>
       </div>
 
-      <!-- Ligne boutons selon ton ordre -->
+      <!-- Ligne boutons -->
       <div style="display:flex; align-items:center; gap:8px; margin-top:12px; flex-wrap:wrap;">
         <button type="button" class="btn secondary" data-act="comment" data-key="${escapeHtml(k)}">
           Ajouter un commentaire
@@ -305,6 +307,7 @@ function render(){
             <input class="input" id="ef_${sk}" value="${escapeHtml(o.format || "")}" placeholder="75cl" />
           </div>
 
+          <!-- NOTE /10 dans la fiche (garde l’édition ici aussi si tu veux) -->
           <div>
             <div class="small" style="margin-bottom:6px;">Note /10</div>
             <input class="input" id="er_${sk}" type="number" min="0" max="10" step="0.5" inputmode="decimal"
@@ -332,7 +335,7 @@ function render(){
     list.appendChild(div);
   }
 
-  // Bind actions (tous les boutons)
+  // Bind actions
   list.querySelectorAll("button[data-act]").forEach(btn => {
     btn.addEventListener("click", () => {
       const act = btn.getAttribute("data-act");
@@ -348,22 +351,26 @@ function render(){
       if (act === "cancelComment") { closeComment(key); return; }
       if (act === "saveComment") { saveComment(obj); return; }
 
-      // add/remove
+      if (act === "rate") { toggleRate(key); return; }
+      if (act === "cancelRate") { closeRate(key); return; }
+      if (act === "saveRate") { saveRate(obj); return; }
+
       applyAction(act, obj);
     });
   });
 }
 
-/* ---------- EDITION ---------- */
+/* ---------- EDITION FICHE ---------- */
 
 function toggleEdit(key){
   const sk = safeKey(key);
   const box = document.getElementById("edit_" + sk);
   if (!box) return;
 
-  // Fermer les autres boîtes ouvertes (sans fermer un commentaire en cours)
   document.querySelectorAll(".editBox").forEach(el => {
-    if (el !== box && !el.classList.contains("commentBox")) el.classList.add("hidden");
+    if (el !== box && !el.classList.contains("commentBox") && !el.classList.contains("rateBox")) {
+      el.classList.add("hidden");
+    }
   });
 
   box.classList.toggle("hidden");
@@ -448,7 +455,6 @@ function toggleComment(key){
   const box = document.getElementById("comment_" + sk);
   if (!box) return;
 
-  // Fermer les autres boîtes commentaire ouvertes
   document.querySelectorAll(".commentBox").forEach(el => {
     if (el !== box) el.classList.add("hidden");
   });
@@ -487,6 +493,68 @@ async function saveComment(o){
 
     rating: (o.rating === 0 || o.rating) ? o.rating : "",
     comment,
+
+    source: "cave"
+  };
+
+  const res = await apiPost(payload);
+  if (!res.ok) {
+    setStatus("Erreur");
+    alert(res.error || "Erreur API");
+    return;
+  }
+
+  setStatus("Enregistré");
+  await refresh();
+}
+
+/* ---------- NOTE (clic sur le bouton note) ---------- */
+
+function toggleRate(key){
+  const sk = safeKey(key);
+  const box = document.getElementById("rate_" + sk);
+  if (!box) return;
+
+  // Fermer les autres boîtes note
+  document.querySelectorAll(".rateBox").forEach(el => {
+    if (el !== box) el.classList.add("hidden");
+  });
+
+  box.classList.toggle("hidden");
+}
+
+function closeRate(key){
+  const sk = safeKey(key);
+  const box = document.getElementById("rate_" + sk);
+  if (box) box.classList.add("hidden");
+}
+
+async function saveRate(o){
+  const sk = safeKey(o.key);
+  const raw = document.getElementById("rv_" + sk)?.value ?? "";
+  const rating = normalizeRatingHalf(raw);
+
+  setStatus("Enregistrement…");
+
+  const payload = {
+    action: "upsert",
+    ean: o.ean,
+    millesime: o.millesime || "NV",
+
+    old_key: o.key || "",
+    old_millesime: o.millesime || "NV",
+
+    nom: o.nom || "",
+    domaine: o.domaine || "",
+    appellation: o.appellation || "",
+    couleur: o.couleur || "",
+    format: o.format || "",
+    emplacement: o.emplacement || "",
+    image_url: o.image_url || "",
+    notes: o.notes || "",
+
+    rating,
+    comment: (o.comment || "").trim(),
 
     source: "cave"
   };
@@ -546,11 +614,8 @@ async function applyAction(action, o){
     return;
   }
 
-  // Mettre à jour localement sans recharger tout
   const newQty = res.data && res.data.quantite !== undefined ? Number(res.data.quantite) : null;
-  if (newQty !== null) {
-    o.quantite = newQty;
-  }
+  if (newQty !== null) o.quantite = newQty;
 
   const title = (o.nom || "Le vin").trim();
   alert(action === "add" ? `"${title}" ajouté (+${qty}).` : `"${title}" sorti (–${qty}).`);
@@ -565,7 +630,6 @@ async function refresh(){
   setStatus("Chargement…");
 
   try {
-    // timeout pour éviter un "Chargement…" infini
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 12000);
 
@@ -612,7 +676,6 @@ function bind(){
     $(id)?.addEventListener("change", () => render());
   });
 
-  // tri
   ["sortBy","sortOrder"].forEach(id => {
     $(id)?.addEventListener("change", () => render());
   });
