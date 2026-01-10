@@ -1,12 +1,17 @@
-// Remplacez cette URL par votre Apps Script /exec
-const API_URL = "https://script.google.com/macros/s/AKfycbyxfNO9zWm3CT-GACd0oQE_ambHcJ33VHrQOxVxQIIEEpuv53G_A08cWqHXOsYcofaD/exec";
+// /scanner/app.js
+// Objectif :
+// - Garder l’affichage "Résultat" (titre + total) SANS la liste "2023 : 2"
+// - Si déjà en cave : afficher des encadrés (Domaine - Nom - Millésime - X bouteilles) + boutons + / - à droite
+// - Bouton "Nouveau millésime en cave" => ouvre le formulaire prérempli + bouton "Ajouter" (demande qty puis action=add)
+// - Si pas en cave : bouton "Nouveau vin en cave" => ouvre formulaire prérempli + bouton "Ajouter"
+// - Bouton "Modifier la fiche" conserve l’édition (upsert) avec choix du millésime si plusieurs
 
+const API_URL = "https://script.google.com/macros/s/AKfycbyxfNO9zWm3CT-GACd0oQE_ambHcJ33VHrQOxVxQIIEEpuv53G_A08cWqHXOsYcofaD/exec";
 const $ = (id) => document.getElementById(id);
 
 window.__APP_LOADED__ = "OK";
-alert("APP.JS chargé V9");
+alert("APP.JS chargé V10");
 
-// ✅ old_key uniquement en mode édition (via bouton "Modifier la fiche")
 let editingOldKey = "";
 
 let last = {
@@ -22,8 +27,8 @@ function setStatus(t) {
   if (b) b.textContent = t || "Prêt";
 }
 
-function show(id) { $(id).classList.remove("hidden"); }
-function hide(id) { $(id).classList.add("hidden"); }
+function show(id) { const el = $(id); if (el) el.classList.remove("hidden"); }
+function hide(id) { const el = $(id); if (el) el.classList.add("hidden"); }
 
 async function apiGet(url) {
   const res = await fetch(url, { method: "GET" });
@@ -33,13 +38,23 @@ async function apiGet(url) {
 async function apiPost(payload) {
   const res = await fetch(API_URL, {
     method: "POST",
-    body: JSON.stringify(payload)   // pas de headers !
+    body: JSON.stringify(payload) // pas de headers !
   });
   return res.json();
 }
 
 function normalizeEan(ean) {
   return (ean || "").toString().replace(/\D/g, "").trim();
+}
+
+function escapeHtml(s) {
+  return (s || "")
+    .toString()
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 /**
@@ -66,26 +81,26 @@ function fillFormFromProduct(p) {
 
 function getFormData() {
   return {
-    nom: $("f_nom").value.trim(),
-    domaine: $("f_domaine").value.trim(),
-    appellation: $("f_appellation").value.trim(),
-    millesime: $("f_millesime").value.trim(),
-    couleur: $("f_couleur").value,
-    format: $("f_format").value.trim(),
-    emplacement: $("f_emplacement").value.trim()
+    nom: $("f_nom")?.value?.trim() || "",
+    domaine: $("f_domaine")?.value?.trim() || "",
+    appellation: $("f_appellation")?.value?.trim() || "",
+    millesime: $("f_millesime")?.value?.trim() || "",
+    couleur: $("f_couleur")?.value || "",
+    format: $("f_format")?.value?.trim() || "",
+    emplacement: $("f_emplacement")?.value?.trim() || ""
   };
 }
 
 function fillFormFromAny(o) {
   if (!o) return;
 
-  $("f_nom").value = o.nom || "";
-  $("f_domaine").value = o.domaine || "";
-  $("f_appellation").value = o.appellation || "";
-  $("f_millesime").value = o.millesime || "NV";
-  $("f_couleur").value = o.couleur || "";
-  $("f_format").value = o.format || "";
-  $("f_emplacement").value = o.emplacement || "";
+  if ($("f_nom")) $("f_nom").value = o.nom || "";
+  if ($("f_domaine")) $("f_domaine").value = o.domaine || "";
+  if ($("f_appellation")) $("f_appellation").value = o.appellation || "";
+  if ($("f_millesime")) $("f_millesime").value = o.millesime || "NV";
+  if ($("f_couleur")) $("f_couleur").value = o.couleur || "";
+  if ($("f_format")) $("f_format").value = o.format || "";
+  if ($("f_emplacement")) $("f_emplacement").value = o.emplacement || "";
 }
 
 /**
@@ -98,7 +113,7 @@ async function lookup(ean, opts = {}) {
 
   last.ean = ean;
 
-  // ✅ IMPORTANT : à chaque nouveau scan/recherche, on sort du mode édition
+  // à chaque scan/recherche, on sort du mode édition
   editingOldKey = "";
 
   setStatus("Recherche…");
@@ -137,144 +152,51 @@ async function lookup(ean, opts = {}) {
 
   last.product = offProduct;
 
+  // On affiche le résultat
   renderResult();
   setStatus("Prêt");
 
-  // ✅ NOUVEAU COMPORTEMENT :
-  // - on affiche TOUJOURS le formulaire
-  // - si déjà en cave => on préremplit les infos (nom/domaine/etc)
-  // - MAIS on laisse le millésime vide pour pouvoir ajouter un nouveau millésime
-  show("form");
-
-  if (last.dataInCave.length > 0) {
-    const base = last.dataInCave[0];
-    fillFormFromAny(base);
-
-    // Millésime volontairement vide (choix utilisateur)
-    $("f_millesime").value = "";
-  } else {
-    fillFormFromProduct(offProduct || { nom:"", domaine:"", appellation:"", millesime:"", couleur:"", format:"" });
-  }
+  // Par défaut on n’ouvre PAS le formulaire
+  hide("form");
 }
 
-function renderResult() {
-  const ean = last.ean;
-  const cave = last.dataInCave;
-  const p = last.product;
+/* ===========================
+   UI : Encadrés des millésimes en cave
+   =========================== */
 
-  let title = "";
-  let sub = "";
-  let detailsHtml = "";
-  let img = (p && p.image_url) ? p.image_url : "";
+function renderCaveCards(cave){
+  const rows = (cave || []).map((x) => {
+    const domaine = (x.domaine || "").trim();
+    const nom = (x.nom || "").trim();
+    const millesime = (x.millesime || "NV").toString().trim();
+    const qty = Number(x.quantite || 0);
 
-  if (cave.length > 0) {
-    const total = cave.reduce((s, x) => s + Number(x.quantite || 0), 0);
-    title = "Déjà dans la cave";
-    sub = "Total : " + total + " bouteille(s)";
+    const title = [domaine, nom, millesime].filter(Boolean).join(" - ");
 
-    // ✅ MODIF : on n'affiche QUE millésime + quantité (plus de (?) / parenthèses)
-    detailsHtml = cave
-      .map(x => `• ${escapeHtml(x.millesime || "NV")} : <b>${escapeHtml(String(x.quantite || 0))}</b>`)
-      .join("<br>");
+    return `
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px; border:1px solid rgba(17,24,39,.10); border-radius:14px; background: rgba(255,255,255,.9); box-shadow: 0 6px 18px rgba(0,0,0,.04); margin-top:10px;">
+        <div style="min-width:0;">
+          <div style="font-weight:800; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+            ${escapeHtml(title || "Vin")}
+          </div>
+          <div style="margin-top:4px; font-size:13px; color: rgba(17,24,39,.72);">
+            ${escapeHtml(String(qty))} bouteille(s)
+          </div>
+        </div>
 
-  } else if (p) {
-    title = escapeHtml(p.nom || "Vin détecté");
-    sub = escapeHtml(p.domaine || "—");
-    detailsHtml = "EAN : " + escapeHtml(ean);
-  } else {
-    title = "Vin inconnu";
-    sub = "EAN : " + escapeHtml(ean);
-    detailsHtml = "Aucune fiche automatique. Complétez ci-dessous.";
-  }
+        <div style="display:flex; gap:8px; flex:0 0 auto;">
+          <button type="button" class="btn primary" data-act="rowAdd" data-key="${escapeHtml(x.key || "")}">+</button>
+          <button type="button" class="btn danger" data-act="rowRemove" data-key="${escapeHtml(x.key || "")}">-</button>
+        </div>
+      </div>
+    `;
+  }).join("");
 
-  const infoLinks = buildInfoLinks(ean, cave[0] || p);
-
-  $("result").innerHTML = `
-    <div class="sectionTitle">Résultat</div>
-    <h2 class="resultTitle">${title}</h2>
-    <div class="resultMeta">${sub}</div>
-
-    ${img ? `<img class="photo" src="${img}" alt="Photo">` : ""}
-
-    <div class="resultBlock">${detailsHtml}</div>
-
-    <div class="actionsRow">
-      <button type="button" class="btn primary" id="btnAdd">+1</button>
-      <button type="button" class="btn danger" id="btnRemove">-1</button>
-      <button type="button" class="btn secondary" id="btnEdit">Modifier la fiche</button>
-      <button type="button" class="btn secondary" id="btnInfo">Infos</button>
-    </div>
-
-    <div id="infoBox" class="infoLinks hidden">
-      <a href="${infoLinks.vivino}" target="_blank" rel="noopener">Vivino</a>
-      <a href="${infoLinks.ws}" target="_blank" rel="noopener">Wine-Searcher</a>
-      <a href="${infoLinks.google}" target="_blank" rel="noopener">Google</a>
-    </div>
-  `;
-
-  show("result");
-
-  $("btnAdd").onclick = () => applyAction("add");
-  $("btnRemove").onclick = () => applyAction("remove");
-  $("btnInfo").onclick = () => $("infoBox").classList.toggle("hidden");
-
-  // ✅ MODIF : demander quel millésime on veut éditer, si plusieurs
-  $("btnEdit").onclick = () => {
-    if (!last.dataInCave || last.dataInCave.length === 0) {
-      show("form");
-      fillFormFromAny(last.product || {});
-      return;
-    }
-
-    let objToEdit = last.dataInCave[0];
-
-    if (last.dataInCave.length > 1) {
-      const choices = last.dataInCave.map(x => x.millesime || "NV");
-      const picked = prompt("Quel millésime voulez-vous modifier ? " + choices.join(", "), choices[0]);
-      const m = (picked || "").trim() || choices[0];
-      objToEdit = last.dataInCave.find(x => (x.millesime || "NV") === m) || last.dataInCave[0];
-    }
-
-    // ✅ ici on active la migration (uniquement pour édition)
-    editingOldKey = String(objToEdit.key || "").trim();
-
-    show("form");
-    fillFormFromAny(objToEdit);
-
-    setTimeout(() => {
-      $("form")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 120);
-  };
+  return rows || "";
 }
 
-function buildInfoLinks(ean, obj) {
-  const name = obj && (obj.nom || obj.domaine) ? `${obj.nom || ""} ${obj.domaine || ""} ${obj.millesime || ""}`.trim() : ean;
-  const q = encodeURIComponent(name);
-  return {
-    vivino: `https://www.vivino.com/search/wines?q=${q}`,
-    ws: `https://www.wine-searcher.com/find/${encodeURIComponent(name.replace(/\s+/g," "))}`,
-    google: `https://www.google.com/search?q=${q}`
-  };
-}
-
-function escapeHtml(s) {
-  return (s || "")
-    .toString()
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-/**
- * ✅ OPTION A + FIX "VIN" :
- * - le millésime prend priorité sur le formulaire
- * - si le formulaire est vide, on prend les infos existantes en cave
- */
-async function applyAction(action) {
-  const ean = last.ean;
-  if (!ean) return;
+async function applyActionDirect(action, obj){
+  if (!obj || !obj.ean) return;
 
   const txt = prompt(
     action === "add" ? "Combien de bouteilles ajouter ?" : "Combien de bouteilles sortir ?",
@@ -288,47 +210,17 @@ async function applyAction(action) {
     return;
   }
 
-  // Millésime : priorité au formulaire
-  let millesime = (getFormData().millesime || "").trim();
-
-  // si pas indiqué et plusieurs millésimes => demander
-  if (!millesime) {
-    if (last.dataInCave.length > 1) {
-      const choices = last.dataInCave.map(x => x.millesime || "NV");
-      const picked = prompt("Quel millésime ? " + choices.join(", "), choices[0]);
-      millesime = (picked || "").trim();
-    } else if (last.dataInCave.length === 1) {
-      millesime = (last.dataInCave[0].millesime || "NV").toString();
-    }
-  }
-  if (!millesime) millesime = "NV";
-
-  // ✅ IMPORTANT : toujours envoyer un nom/domaine/etc
-  let base = getFormData();
-  const hasAnyInfo = base.nom || base.domaine || base.couleur || base.format;
-
-  if (!hasAnyInfo && last.dataInCave.length > 0) {
-    base = {
-      nom: last.dataInCave[0].nom || "",
-      domaine: last.dataInCave[0].domaine || "",
-      appellation: last.dataInCave[0].appellation || "",
-      couleur: last.dataInCave[0].couleur || "",
-      format: last.dataInCave[0].format || "",
-      emplacement: last.dataInCave[0].emplacement || ""
-    };
-  }
-
   const payload = {
     action,
     qty,
-    ean,
-    millesime,
-    nom: base.nom || "",
-    domaine: base.domaine || "",
-    appellation: base.appellation || "",
-    couleur: base.couleur || "",
-    format: base.format || "",
-    emplacement: base.emplacement || "",
+    ean: obj.ean,
+    millesime: (obj.millesime || "NV").toString().trim() || "NV",
+    nom: obj.nom || "",
+    domaine: obj.domaine || "",
+    appellation: obj.appellation || "",
+    couleur: obj.couleur || "",
+    format: obj.format || "",
+    emplacement: obj.emplacement || "",
     image_url: last.product ? last.product.image_url : "",
     source: "scanner"
   };
@@ -342,31 +234,237 @@ async function applyAction(action) {
     return;
   }
 
-  const name = (payload.nom || "").trim() || "Le vin";
-  alert(action === "add"
-    ? `"${name}" a été ajouté à la cave (+${qty}).`
-    : `"${name}" a été sorti de la cave (–${qty}).`
-  );
-
-  await lookup(ean, { keepScreen: true });
+  await lookup(last.ean, { keepScreen: true });
 }
 
+/* ===========================
+   Rendu du résultat
+   =========================== */
+
+function renderResult() {
+  const ean = last.ean;
+  const cave = last.dataInCave || [];
+  const p = last.product;
+
+  let title = "";
+  let sub = "";
+  let img = (p && p.image_url) ? p.image_url : "";
+
+  let caveCardsHtml = "";
+  let ctaHtml = "";
+
+  if (cave.length > 0) {
+    const total = cave.reduce((s, x) => s + Number(x.quantite || 0), 0);
+    title = "Déjà dans la cave";
+    sub = "Total : " + total + " bouteille(s)";
+
+    caveCardsHtml = renderCaveCards(cave);
+
+    ctaHtml = `
+      <div style="margin-top:12px; display:flex; justify-content:center;">
+        <button type="button" class="btn secondary" id="btnNewVintage">Nouveau millésime en cave</button>
+      </div>
+    `;
+  } else if (p) {
+    title = escapeHtml(p.nom || "Vin détecté");
+    sub = escapeHtml(p.domaine || "—");
+
+    ctaHtml = `
+      <div style="margin-top:12px; display:flex; justify-content:center;">
+        <button type="button" class="btn secondary" id="btnNewWine">Nouveau vin en cave</button>
+      </div>
+    `;
+  } else {
+    title = "Vin inconnu";
+    sub = "EAN : " + escapeHtml(ean);
+
+    ctaHtml = `
+      <div style="margin-top:12px; display:flex; justify-content:center;">
+        <button type="button" class="btn secondary" id="btnNewWine">Nouveau vin en cave</button>
+      </div>
+    `;
+  }
+
+  const infoLinks = buildInfoLinks(ean, cave[0] || p);
+
+  $("result").innerHTML = `
+    <div class="sectionTitle">Résultat</div>
+    <h2 class="resultTitle">${title}</h2>
+    <div class="resultMeta">${sub}</div>
+
+    ${img ? `<img class="photo" src="${img}" alt="Photo">` : ""}
+
+    ${caveCardsHtml ? `<div style="margin-top:10px;">${caveCardsHtml}</div>` : ""}
+
+    ${ctaHtml}
+
+    <div class="actionsRow" style="margin-top:12px;">
+      <button type="button" class="btn secondary" id="btnEdit">Modifier la fiche</button>
+      <button type="button" class="btn secondary" id="btnInfo">Infos</button>
+    </div>
+
+    <div id="infoBox" class="infoLinks hidden">
+      <a href="${infoLinks.vivino}" target="_blank" rel="noopener">Vivino</a>
+      <a href="${infoLinks.ws}" target="_blank" rel="noopener">Wine-Searcher</a>
+      <a href="${infoLinks.google}" target="_blank" rel="noopener">Google</a>
+    </div>
+  `;
+
+  show("result");
+
+  $("btnInfo").onclick = () => $("infoBox").classList.toggle("hidden");
+
+  // + / - sur les cartes (si en cave)
+  $("result").querySelectorAll("button[data-act='rowAdd']").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const key = btn.getAttribute("data-key") || "";
+      const obj = (last.dataInCave || []).find(x => (x.key || "") === key);
+      if (obj) applyActionDirect("add", obj);
+    });
+  });
+  $("result").querySelectorAll("button[data-act='rowRemove']").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const key = btn.getAttribute("data-key") || "";
+      const obj = (last.dataInCave || []).find(x => (x.key || "") === key);
+      if (obj) applyActionDirect("remove", obj);
+    });
+  });
+
+  // CTA : nouveau millésime / nouveau vin
+  const btnNewVintage = document.getElementById("btnNewVintage");
+  if (btnNewVintage) {
+    btnNewVintage.onclick = () => {
+      show("form");
+      const base = (last.dataInCave && last.dataInCave[0]) ? last.dataInCave[0] : (last.product || {});
+      fillFormFromAny(base);
+
+      if ($("f_millesime")) $("f_millesime").value = ""; // vide pour nouveau millésime
+      if ($("btnUpsert")) $("btnUpsert").textContent = "Ajouter";
+      editingOldKey = ""; // création, pas édition
+
+      setTimeout(() => {
+        $("form")?.scrollIntoView({ behavior:"smooth", block:"start" });
+      }, 120);
+    };
+  }
+
+  const btnNewWine = document.getElementById("btnNewWine");
+  if (btnNewWine) {
+    btnNewWine.onclick = () => {
+      show("form");
+      // préremplir via OFF si possible, sans écraser si user a déjà saisi
+      fillFormFromProduct(last.product || {});
+      if ($("btnUpsert")) $("btnUpsert").textContent = "Ajouter";
+      editingOldKey = ""; // création, pas édition
+
+      setTimeout(() => {
+        $("form")?.scrollIntoView({ behavior:"smooth", block:"start" });
+      }, 120);
+    };
+  }
+
+  // Modifier fiche : édition (upsert), choix millésime si plusieurs
+  $("btnEdit").onclick = () => {
+    if (!last.dataInCave || last.dataInCave.length === 0) {
+      show("form");
+      fillFormFromAny(last.product || {});
+      if ($("btnUpsert")) $("btnUpsert").textContent = "Enregistrer";
+      editingOldKey = "";
+      return;
+    }
+
+    let objToEdit = last.dataInCave[0];
+
+    if (last.dataInCave.length > 1) {
+      const choices = last.dataInCave.map(x => x.millesime || "NV");
+      const picked = prompt("Quel millésime voulez-vous modifier ? " + choices.join(", "), choices[0]);
+      const m = (picked || "").trim() || choices[0];
+      objToEdit = last.dataInCave.find(x => (x.millesime || "NV") === m) || last.dataInCave[0];
+    }
+
+    editingOldKey = String(objToEdit.key || "").trim();
+
+    show("form");
+    fillFormFromAny(objToEdit);
+    if ($("btnUpsert")) $("btnUpsert").textContent = "Enregistrer";
+
+    setTimeout(() => {
+      $("form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 120);
+  };
+}
+
+function buildInfoLinks(ean, obj) {
+  const name = obj && (obj.nom || obj.domaine)
+    ? `${obj.nom || ""} ${obj.domaine || ""} ${obj.millesime || ""}`.trim()
+    : ean;
+
+  const q = encodeURIComponent(name);
+  return {
+    vivino: `https://www.vivino.com/search/wines?q=${q}`,
+    ws: `https://www.wine-searcher.com/find/${encodeURIComponent(name.replace(/\s+/g," "))}`,
+    google: `https://www.google.com/search?q=${q}`
+  };
+}
+
+/**
+ * Bouton du formulaire (#btnUpsert)
+ * - Si le bouton affiche "Ajouter" => action=add + demande quantité + crée/augmente la fiche (ean+millesime)
+ * - Sinon => action=upsert (édition) avec old_key (si présent)
+ */
 async function upsert() {
-  const ean = normalizeEan($("ean").value);
+  const ean = normalizeEan($("ean")?.value || last.ean);
   if (!ean) return alert("EAN manquant.");
 
   const f = getFormData();
   if (!f.nom) return alert("Le nom est obligatoire.");
-  if (!f.couleur) return alert("La couleur est recommandée.");
 
+  const btnLabel = ($("btnUpsert")?.textContent || "").toLowerCase();
+  const isAddMode = btnLabel.includes("ajouter");
+
+  if (isAddMode) {
+    const txt = prompt("Combien de bouteilles ajouter ?", "1");
+    if (txt === null) return;
+
+    let qty = parseInt(String(txt).trim(), 10);
+    if (!Number.isFinite(qty) || qty <= 0) return alert("Quantité invalide.");
+
+    const payload = {
+      action: "add",
+      qty,
+      ean,
+      millesime: (f.millesime || "NV").trim() || "NV",
+      nom: f.nom || "",
+      domaine: f.domaine || "",
+      appellation: f.appellation || "",
+      couleur: f.couleur || "",
+      format: f.format || "",
+      emplacement: f.emplacement || "",
+      image_url: last.product ? last.product.image_url : "",
+      source: "scanner"
+    };
+
+    setStatus("Ajout…");
+    const res = await apiPost(payload);
+    if (!res.ok) {
+      setStatus("Erreur");
+      alert(res.error || "Erreur API");
+      return;
+    }
+
+    setStatus("Enregistré");
+    alert("Ajout effectué.");
+    editingOldKey = "";
+    await lookup(ean, { keepScreen: true });
+    return;
+  }
+
+  // Mode édition (upsert)
   const payload = {
     action: "upsert",
     ean,
     millesime: f.millesime || "NV",
-
-    // ✅ old_key envoyé uniquement si vous avez cliqué sur "Modifier la fiche"
     old_key: editingOldKey,
-
     nom: f.nom,
     domaine: f.domaine,
     appellation: f.appellation,
@@ -389,9 +487,7 @@ async function upsert() {
   setStatus("Enregistré");
   alert("Fiche enregistrée.");
 
-  // ✅ reset : on sort du mode édition après enregistrement
   editingOldKey = "";
-
   await lookup(ean, { keepScreen: true });
 
   setTimeout(() => {
@@ -509,7 +605,7 @@ function onQuaggaDetected(data) {
   lastDetectedAt = now;
 
   stopScan();
-  $("ean").value = ean;
+  if ($("ean")) $("ean").value = ean;
   lookup(ean);
 }
 
